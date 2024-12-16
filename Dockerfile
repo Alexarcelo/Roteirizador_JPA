@@ -22,6 +22,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copie todo o conteúdo do diretório local para o contêiner
 COPY . .
 
-EXPOSE 8091
+EXPOSE 8081
 
-CMD ["streamlit", "run", "Roteirizador_TRF_OUT.py", "--server.port=8091"]
+CMD ["streamlit", "run", "Roteirizador_TRF_OUT.py", "--server.port=8081"]
