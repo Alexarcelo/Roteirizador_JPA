@@ -9,6 +9,7 @@ from itertools import combinations
 from google.cloud import secretmanager 
 import json
 from google.oauth2.service_account import Credentials
+import requests
 
 def gerar_df_phoenix(vw_name, base_luck):
 
@@ -382,54 +383,60 @@ def definir_horario_primeiro_hotel(df, index):
 
     horario_ultimo_hotel = df.at[index, 'Antecipação Último Hotel']
 
-    if pd.isna(horario_ultimo_hotel):
+    if st.session_state.tipo_de_transfer=='OUT':
 
-        if servico=='HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA':
+        if pd.isna(horario_ultimo_hotel):
 
-            if tipo_voo=='Internacional':
+            if servico=='HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_joao_pessoa) - transformar_timedelta(time(1, 0))
-            
-            else:
+                if tipo_voo=='Internacional':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_joao_pessoa)
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_joao_pessoa) - transformar_timedelta(time(1, 0))
+                
+                else:
 
-        elif servico=='HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA':
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_joao_pessoa)
 
-            if tipo_voo=='Internacional':
+            elif servico=='HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_pitimbu) - transformar_timedelta(time(1, 0))
-            
-            else:
+                if tipo_voo=='Internacional':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_pitimbu)
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_pitimbu) - transformar_timedelta(time(1, 0))
+                
+                else:
 
-        elif servico == 'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA' or servico=='HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE' or \
-            servico=='HOTÉIS PITIMBU / AEROPORTO RECIFE':
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_pitimbu)
 
-            if tipo_voo=='Internacional':
+            elif servico == 'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA' or servico=='HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE' or \
+                servico=='HOTÉIS PITIMBU / AEROPORTO RECIFE':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_recife) - transformar_timedelta(time(1, 0))
-            
-            else:
+                if tipo_voo=='Internacional':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_recife)
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_recife) - transformar_timedelta(time(1, 0))
+                
+                else:
 
-        elif servico=='HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE':
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_recife)
 
-            if tipo_voo=='Internacional':
+            elif servico=='HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_campina_grande) - transformar_timedelta(time(1, 0))
-            
-            else:
+                if tipo_voo=='Internacional':
 
-                return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_campina_grande)
-            
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_campina_grande) - transformar_timedelta(time(1, 0))
+                
+                else:
+
+                    return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_campina_grande)
+                
+        else:
+
+            horario_ultimo_hotel = transformar_timedelta(horario_ultimo_hotel)
+
+            return data_hora_voo - horario_ultimo_hotel
+        
     else:
 
-        horario_ultimo_hotel = transformar_timedelta(horario_ultimo_hotel)
-
-        return data_hora_voo - horario_ultimo_hotel
+        return data_hora_voo + transformar_timedelta(st.session_state.intervalo_inicial_joao_pessoa)
 
 def roteirizar_hoteis_mais_pax_max(df_servicos, roteiro, df_hoteis_pax_max):
 
@@ -2322,6 +2329,8 @@ def verificar_rotas_alternativas_ou_plotar_roteiros_sem_apoio(df_roteiros_altern
 
             html_content = file.read()
 
+        salvar_rotas_historico(df_pdf)
+
         st.download_button(
             label="Baixar Arquivo HTML",
             data=html_content,
@@ -2412,6 +2421,8 @@ def plotar_roteiros_gerais_alternativos_sem_apoio(df_servicos, df_alternativos, 
 
             df_ref_1 = df_alternativos[df_alternativos['Roteiro']==item].reset_index(drop=True)
 
+            coluna = plotar_divisao_de_rotas(coluna, row3)
+
             horario_inicial_voo = df_ref_1['Horario Voo'].min()
 
             horario_final_voo = df_ref_1['Horario Voo'].max()
@@ -2484,6 +2495,8 @@ def plotar_roteiros_gerais_alternativos_sem_apoio(df_servicos, df_alternativos, 
         if item in  df_alternativos_2['Roteiro'].unique().tolist():
 
             df_ref_1 = df_alternativos_2[df_alternativos_2['Roteiro']==item].reset_index(drop=True)
+            
+            coluna = plotar_divisao_de_rotas(coluna, row3)
 
             horario_inicial_voo = df_ref_1['Horario Voo'].min()
 
@@ -2558,6 +2571,8 @@ def plotar_roteiros_gerais_alternativos_sem_apoio(df_servicos, df_alternativos, 
 
             df_ref_1 = df_alternativos_3[df_alternativos_3['Roteiro']==item].reset_index(drop=True)
 
+            coluna = plotar_divisao_de_rotas(coluna, row3)
+
             horario_inicial_voo = df_ref_1['Horario Voo'].min()
 
             horario_final_voo = df_ref_1['Horario Voo'].max()
@@ -2631,6 +2646,8 @@ def plotar_roteiros_gerais_alternativos_sem_apoio(df_servicos, df_alternativos, 
 
             df_ref_1 = df_alternativos_4[df_alternativos_4['Roteiro']==item].reset_index(drop=True)
 
+            coluna = plotar_divisao_de_rotas(coluna, row3)
+
             horario_inicial_voo = df_ref_1['Horario Voo'].min()
 
             horario_final_voo = df_ref_1['Horario Voo'].max()
@@ -2699,6 +2716,8 @@ def plotar_roteiros_gerais_alternativos_sem_apoio(df_servicos, df_alternativos, 
                     else:
 
                         coluna+=1
+
+        coluna = plotar_divisao_de_rotas(coluna, row3)
 
     return coluna
 
@@ -3239,533 +3258,789 @@ def verificar_preenchimento_df_hoteis(df_hoteis_ref):
         st.error(f'Os hoteis {nome_hoteis} estão com cadastro errado. Pode estar faltando o número da sequência, o nome da região ou o preenchimento da acessibilidade. Verifique, ajuste e tente novamente.')
 
         st.stop()
+
+def objetos_parametros_in(row1):
+
+    with row1[0]:
+
+        st.session_state.intervalo_inicial_joao_pessoa = time(1, 30)
+
+        st.session_state.intervalo_hoteis_bairros_iguais = time(0, 5)
+
+        st.session_state.intervalo_hoteis_bairros_diferentes = time(0, 10)
+
+        st.session_state.intervalo_pu_hotel = time(10,0)
+
+        st.session_state.pax_cinco_min = 1000
+
+        pax_max = st.number_input('Máximo de Paxs por Carro', step=1, value=46, key='pax_max')
+    
+    with row1[1]:
+
+        max_hoteis = st.number_input('Máximo de Hoteis por Carro', step=1, value=10, key='max_hoteis')
+
+def plotar_divisao_de_rotas(coluna, row3):
+
+    if coluna==0:
+
+        with row3[0]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[1]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[2]:
+
+            container_ref = st.container(border=True, height=500)
+
+    elif coluna==1:
+
+        with row3[1]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[2]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[0]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[1]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[2]:
+
+            container_ref = st.container(border=True, height=500)
+
+    elif coluna==2:
+
+        with row3[2]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[0]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[1]:
+
+            container_ref = st.container(border=True, height=500)
+
+        with row3[2]:
+
+            container_ref = st.container(border=True, height=500)
+
+    coluna=0
+
+    return coluna
+
+def puxar_historico(id_gsheet, lista_abas, lista_nomes_df_hoteis):
+
+    # GCP projeto onde está a chave credencial
+    project_id = "grupoluck"
+
+    # ID da chave credencial do google.
+    secret_id = "cred-luck-aracaju"
+
+    # Cria o cliente.
+    secret_client = secretmanager.SecretManagerServiceClient()
+
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = secret_client.access_secret_version(request={"name": secret_name})
+
+    secret_payload = response.payload.data.decode("UTF-8")
+
+    credentials_info = json.loads(secret_payload)
+
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+
+    # Use the credentials to authorize the gspread client
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    client = gspread.authorize(credentials)
+
+    spreadsheet = client.open_by_key(id_gsheet)
+
+    for index in range(len(lista_abas)):
+
+        aba = lista_abas[index]
+
+        df_hotel = lista_nomes_df_hoteis[index]
         
+        sheet = spreadsheet.worksheet(aba)
+
+        sheet_data = sheet.get_all_values()
+
+        st.session_state[df_hotel] = pd.DataFrame(sheet_data[1:], columns=sheet_data[0])
+
+def inserir_df_rotas_geradas(aba_excel, df_insercao):
+    
+    # GCP projeto onde está a chave credencial
+    project_id = "grupoluck"
+
+    # ID da chave credencial do google.
+    secret_id = "cred-luck-aracaju"
+
+    # Cria o cliente.
+    secret_client = secretmanager.SecretManagerServiceClient()
+
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = secret_client.access_secret_version(request={"name": secret_name})
+
+    secret_payload = response.payload.data.decode("UTF-8")
+
+    credentials_info = json.loads(secret_payload)
+
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+
+    # Use the credentials to authorize the gspread client
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    client = gspread.authorize(credentials)
+    
+    # Abertura da planilha e aba
+    spreadsheet = client.open_by_key('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY')
+    sheet = spreadsheet.worksheet(aba_excel)
+    
+    # Limpeza do intervalo A2:Z10000
+    sheet.batch_clear(["A2:AR10000"])
+    
+    def format_value(value):
+        if isinstance(value, pd.Timestamp):  # Para colunas datetime no DataFrame
+            return value.strftime('%Y-%m-%d %H:%M:%S')
+        elif type(value) is datetime:  # Para objetos do tipo datetime
+            return value.strftime('%Y-%m-%d')
+        elif isinstance(value, float):  # Formatação opcional para floats
+            return f"{value:.2f}"
+        else:
+            return str(value)  # Para outros tipos
+    
+    # Aplicando formatação aos valores do DataFrame
+    data = df_insercao.applymap(format_value).values.tolist()
+    start_cell = "A2"  # Sempre insere a partir da segunda linha
+    sheet.update(start_cell, data)
+
+def salvar_rotas_historico(df_pdf):
+
+    puxar_historico('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Histórico Roteiros'], ['df_historico_roteiros'])
+
+    st.session_state.df_historico_roteiros['Data Execucao'] = pd.to_datetime(st.session_state.df_historico_roteiros['Data Execucao']).dt.date
+
+    st.session_state.df_historico_roteiros = st.session_state.df_historico_roteiros[~((st.session_state.df_historico_roteiros['Servico']==st.session_state.servico_roteiro) & 
+                                                                                      (st.session_state.df_historico_roteiros['Data Execucao']==st.session_state.data_roteiro))].reset_index(drop=True)
+    
+    st.session_state.df_historico_roteiros = pd.concat([st.session_state.df_historico_roteiros, df_pdf], ignore_index=True)
+
+    inserir_df_rotas_geradas('Histórico Roteiros', st.session_state.df_historico_roteiros)
+
 st.set_page_config(layout='wide')
+
+# Validando usuários antes de mostrar qualquer coisa na tela
+
+with st.spinner('Validando Usuário...'):
+
+    if not st.query_params or not st.query_params["userId"]:
+
+        st.error("Usuário não autenticado")
+
+        st.stop()
+
+    if not 'df_user' in st.session_state:
+        
+        st.session_state.df_user = getUser(st.query_params["userId"])
+
+# Puxando os dados do Phoenix e criando st.session_state.df_juncao_voos e st.session_state.df_horario_esp_ultimo_hotel
+
+with st.spinner('Puxando dados do Phoenix...'):
+
+    if not 'df_router' in st.session_state:
+
+        puxar_dados_phoenix()
+
+    if 'df_juncao_voos' not in st.session_state:
+
+        st.session_state.df_juncao_voos = pd.DataFrame(columns=['Servico', 'Voo', 'Horário', 'Tipo do Translado', 'Junção'])
+
+    if 'df_horario_esp_ultimo_hotel' not in st.session_state:
+
+        st.session_state.df_horario_esp_ultimo_hotel = pd.DataFrame(columns=['Junção/Voo/Reserva', 'Antecipação Último Hotel'])
 
 st.title('Roteirizador de Transfer Out - João Pessoa')
 
 st.divider()
 
-st.header('Parâmetros')
+# Seleção de trf IN ou OUT
 
-row1 = st.columns(3)
+container_tipo_trf = st.container(border=True)
 
-# Verificando se o link está com ID do usuário
+container_tipo_trf.subheader('OUT / IN')
 
-if not st.query_params or not st.query_params["userId"]:
-
-    st.error("Usuário não autenticado")
-
-    st.stop()
-
-# Carrega os dados da tabela 'user`
-
-if not 'df_user' in st.session_state:
-    
-    st.session_state.df_user = getUser(st.query_params["userId"])
-
-# Puxando dados do phoenix
-
-if not 'df_router' in st.session_state:
-
-    puxar_dados_phoenix()
-    
-objetos_parametros(row1)
+tipo_de_transfer = container_tipo_trf.radio('', ['OUT', 'IN'], index=None, key='tipo_de_transfer')
 
 st.divider()
 
-st.header('Juntar Voos')
+# Plotagem de objetos_parametros diante da seleção anterior
 
-st.markdown('*os voos internacionais entre 00:00 e 00:59, na verdade serão executados em D+1, porém, pela antecedência de 1h a mais, eles aparecem no dia selecionado*')
+if tipo_de_transfer=='OUT':
 
-if 'df_juncao_voos' not in st.session_state:
+    st.header('Parâmetros OUT')
 
-    st.session_state.df_juncao_voos = pd.DataFrame(columns=['Servico', 'Voo', 'Horário', 'Tipo do Translado', 'Junção'])
+    row1 = st.columns(3)
 
-if 'df_horario_esp_ultimo_hotel' not in st.session_state:
+    objetos_parametros(row1)
 
-    st.session_state.df_horario_esp_ultimo_hotel = pd.DataFrame(columns=['Junção/Voo/Reserva', 'Antecipação Último Hotel'])
+elif tipo_de_transfer=='IN':
 
-row2 = st.columns(3)
+    st.header('Parâmetros IN')
 
-row21 = st.columns(2)
+    row1 = st.columns(3)
 
-# Botões Atualizar Hoteis, Atualizar Dados Phoenix, campos de Data e botões de roteirizar e visualizar voos
+    objetos_parametros_in(row1)
 
-with row2[0]:
+else:
 
-    # Botão Atualizar Dados Phoenix
+    st.error('*Selecione OUT ou IN acima*')
 
-    atualizar_phoenix = st.button('Atualizar Dados Phoenix')
+if tipo_de_transfer:
 
-    if atualizar_phoenix:
+    st.divider()
 
-        puxar_dados_phoenix()
+    st.header('Juntar Voos')
 
-        if 'df_servico_voos_horarios' in st.session_state:
-            
-            st.session_state['df_servico_voos_horarios'] = pd.DataFrame(columns=['Servico', 'Voo', 'Horario Voo'])
+    if tipo_de_transfer=='OUT':
 
-    # Campo de data
+        st.markdown('*os voos internacionais entre 00:00 e 00:59, na verdade serão executados em D+1, porém, pela antecedência de 1h a mais, eles aparecem no dia selecionado*')
 
-    container_roteirizar = st.container(border=True)
+    row2 = st.columns(3)
 
-    data_roteiro = container_roteirizar.date_input('Data do Roteiro', value=None, format='DD/MM/YYYY', key='data_roteiro')
+    row21 = st.columns(2)
 
-    df_router_data_roteiro = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
-                                                        (st.session_state.df_router['Tipo de Servico']=='OUT') & 
-                                                        (st.session_state.df_router['Status do Servico']!='CANCELADO')]\
-                                                            .reset_index(drop=True)
-
-    lista_servicos = df_router_data_roteiro['Servico'].unique().tolist()
-
-    lista_voos_data_roteiro = df_router_data_roteiro['Voo'].unique().tolist()
-
-    servico_roteiro = container_roteirizar.selectbox('Serviço', lista_servicos, index=None, placeholder='Escolha um Serviço', 
-                                                     key='servico_roteiro')  
-
-    row_container = container_roteirizar.columns(2)
-
-    # Botão roteirizar
-
-    with row_container[0]:
-
-        roteirizar = st.button('Roteirizar')
-
-# Gerar dataframe com os voos da data selecionada e imprimir na tela o dataframe
-
-if servico_roteiro:
-
-    df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
-                                                    (st.session_state.df_router['Tipo de Servico']=='OUT') & 
-                                                    (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
-                                                    (st.session_state.df_router['Servico']==servico_roteiro)]\
-                                                        .reset_index(drop=True)
-    
-    st.session_state.df_servico_voos_horarios = df_router_filtrado[['Servico', 'Voo', 'Horario Voo', 'Tipo do Translado']]\
-    .sort_values(by=['Horario Voo']).drop_duplicates().reset_index(drop=True)
-
-    df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
-
-    st.session_state.df_servico_voos_horarios['Paxs Regular']=0
-
-    for index in range(len(st.session_state.df_servico_voos_horarios)):
-
-        servico = st.session_state.df_servico_voos_horarios.at[index, 'Servico']
-
-        voo = st.session_state.df_servico_voos_horarios.at[index, 'Voo']
-
-        h_voo = st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo']
-
-        total_paxs_ref = \
-            df_router_filtrado[(df_router_filtrado['Servico']==servico) & (df_router_filtrado['Voo']==voo) & 
-                               (df_router_filtrado['Horario Voo']==h_voo) & (df_router_filtrado['Modo do Servico']=='REGULAR')]\
-                                ['Total ADT'].sum() + \
-                                    df_router_filtrado[(df_router_filtrado['Servico']==servico) & 
-                                                       (df_router_filtrado['Voo']==voo) & 
-                                                       (df_router_filtrado['Horario Voo']==h_voo) & 
-                                                       (df_router_filtrado['Modo do Servico']=='REGULAR')]['Total CHD'].sum()
-        
-        st.session_state.df_servico_voos_horarios.at[index, 'Paxs Regular'] = total_paxs_ref
-
-    st.session_state.df_servico_voos_horarios['Horario Voo'] = pd.to_datetime(st.session_state.df_servico_voos_horarios['Horario Voo'], 
-                                                                          format='%H:%M:%S')
-
-    for index in range(len(st.session_state.df_servico_voos_horarios)):
-
-        tipo_translado = st.session_state.df_servico_voos_horarios.at[index, 'Tipo do Translado']
-
-        if tipo_translado=='Internacional':
-
-            st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo Ajustado'] = \
-                st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo'] - transformar_timedelta(time(1,0))
-            
-        else:
-
-            st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo Ajustado'] = \
-                st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo']
-            
-    st.session_state.df_servico_voos_horarios['Horario Voo'] = pd.to_datetime(st.session_state.df_servico_voos_horarios['Horario Voo'], 
-                                                                              format='%H:%M:%S').dt.time
-    
-    st.session_state.df_servico_voos_horarios['Horario Voo Ajustado'] = pd.to_datetime(st.session_state.df_servico_voos_horarios['Horario Voo Ajustado'], 
-                                                                              format='%H:%M:%S').dt.time
-    
-    st.session_state.df_servico_voos_horarios = st.session_state.df_servico_voos_horarios.sort_values(by='Horario Voo Ajustado').reset_index(drop=True)
-
-# Botão pra limpar todos os dataframes
-
-with row2[1]:
-
-    container_botao = st.container()
-
-    limpar_tudo = container_botao.button('Limpar Tudo', use_container_width=True)
-
-if limpar_tudo:
-
-    st.session_state.df_juncao_voos = st.session_state.df_juncao_voos.iloc[0:0]
-
-    st.session_state.df_servico_voos_horarios = st.session_state.df_servico_voos_horarios.iloc[0:0]
-
-    st.session_state.df_horario_esp_ultimo_hotel = st.session_state.df_horario_esp_ultimo_hotel.iloc[0:0]
-
-    st.session_state.df_router_filtrado_2 = st.session_state.df_router_filtrado_2.iloc[0:0]
-
-# Plotar voos do serviço/dia na tela
-
-if servico_roteiro and 'df_servico_voos_horarios' in st.session_state:
+    # Botões Atualizar Hoteis, Atualizar Dados Phoenix, campos de Data e botões de roteirizar e visualizar voos
 
     with row2[0]:
 
-        st.dataframe(st.session_state.df_servico_voos_horarios, hide_index=True) 
+        # Botão Atualizar Dados Phoenix
 
-# Formulário de Junção de Voos
+        atualizar_phoenix = st.button('Atualizar Dados Phoenix')
 
-with row2[1]:
+        if atualizar_phoenix:
 
-    with st.form('juntar_voos_form_novo'):
+            puxar_dados_phoenix()
 
-        # Captando intervalo entre voos
-
-        horario_inicial = st.time_input('Horário Inicial Voo (Ajustado)', value=None, key='horario_inicial', step=300)
-
-        horario_final = st.time_input('Horário Final Voo (Ajustado)', value=None, key='horario_final', step=300) 
-
-        lancar_juncao = st.form_submit_button('Lançar Junção')
-
-        # Lançando junção
-
-        if lancar_juncao and horario_inicial and horario_final:
-
-            # Filtrando dataframe por Horario Voo e Servico
-
-            if horario_inicial and horario_final and servico_roteiro:
-
-                df_voos_hi_hf = st.session_state.df_servico_voos_horarios\
-                    [(st.session_state.df_servico_voos_horarios['Horario Voo Ajustado']>=horario_inicial) & 
-                     (st.session_state.df_servico_voos_horarios['Horario Voo Ajustado']<=horario_final) & 
-                     (st.session_state.df_servico_voos_horarios['Servico']==servico_roteiro)]\
-                        [['Servico', 'Voo', 'Horario Voo', 'Tipo do Translado', 'Paxs Regular']].reset_index(drop=True)
+            if 'df_servico_voos_horarios' in st.session_state:
                 
-                df_voos_hi_hf = df_voos_hi_hf.rename(columns={'Horario Voo': 'Horário'})
+                st.session_state['df_servico_voos_horarios'] = pd.DataFrame(columns=['Servico', 'Voo', 'Horario Voo'])
 
-                df_voos_hi_hf = df_voos_hi_hf[df_voos_hi_hf['Paxs Regular']!=0].reset_index(drop=True)
+        # Campo de data
 
-                df_voos_hi_hf = df_voos_hi_hf[['Servico', 'Voo', 'Horário', 'Tipo do Translado']]
+        container_roteirizar = st.container(border=True)
+
+        data_roteiro = container_roteirizar.date_input('Data do Roteiro', value=None, format='DD/MM/YYYY', key='data_roteiro')
+
+        # Criação de df_router_data_roteiro OUT ou IN
+
+        if tipo_de_transfer=='OUT':
+
+            df_router_data_roteiro = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                                (st.session_state.df_router['Tipo de Servico']=='OUT') & 
+                                                                (st.session_state.df_router['Status do Servico']!='CANCELADO')]\
+                                                                    .reset_index(drop=True)
             
-                if len(st.session_state.df_juncao_voos)>0:
+        elif tipo_de_transfer=='IN':
 
-                    juncao_max = st.session_state.df_juncao_voos['Junção'].max()
+            df_router_data_roteiro = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                                (st.session_state.df_router['Tipo de Servico']=='IN') & 
+                                                                (st.session_state.df_router['Status do Servico']!='CANCELADO')]\
+                                                                    .reset_index(drop=True)
+            
+        # Criação de lista de serviços lista de voos que serão usados pra o usuário escolher o que ele quer roteirizar e quais voos não estão operando
 
-                    df_voos_hi_hf['Junção'] = juncao_max+1
+        lista_servicos = df_router_data_roteiro['Servico'].unique().tolist()
 
-                else:
+        lista_voos_data_roteiro = df_router_data_roteiro['Voo'].unique().tolist()
 
-                    df_voos_hi_hf['Junção'] = 1  
+        # Seleção de serviço
 
-            st.session_state.df_juncao_voos = pd.concat([st.session_state.df_juncao_voos, df_voos_hi_hf], ignore_index=True)
+        servico_roteiro = container_roteirizar.selectbox('Serviço', lista_servicos, index=None, placeholder='Escolha um Serviço', 
+                                                        key='servico_roteiro')  
 
-# Voos não operantes e multiselect p/ horários específicos de último hotel em junções ou voos
+        row_container = container_roteirizar.columns(2)
 
-with row2[1]:
+        # Botão roteirizar
 
-    voos_nao_operantes = st.multiselect('Voos s/ Operar', sorted(lista_voos_data_roteiro))
+        with row_container[0]:
 
-    horario_ultimo_hotel_especifico = st.multiselect('Usar antecipação específica de último hotel p/ voo, junção ou reserva privativa?', ['Sim'])
+            roteirizar = st.button('Roteirizar')
 
-# Plotando formulário para lançamento de horários específicos de último hotel em junções ou voos
+    # Gerar dataframe com os voos da data selecionada e imprimir na tela o dataframe
 
-if len(horario_ultimo_hotel_especifico)>0:
+    if servico_roteiro:
 
-    with row2[1]:
-
-        with st.form('horario_ph_especifico'):
+        if tipo_de_transfer=='OUT':
 
             df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
                                                             (st.session_state.df_router['Tipo de Servico']=='OUT') & 
                                                             (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
                                                             (st.session_state.df_router['Servico']==servico_roteiro)]\
                                                                 .reset_index(drop=True)
+            
+        elif tipo_de_transfer=='IN':
+
+            df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                            (st.session_state.df_router['Tipo de Servico']=='IN') & 
+                                                            (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
+                                                            (st.session_state.df_router['Servico']==servico_roteiro)]\
+                                                                .reset_index(drop=True)
+        
+        st.session_state.df_servico_voos_horarios = df_router_filtrado[['Servico', 'Voo', 'Horario Voo', 'Tipo do Translado']]\
+        .sort_values(by=['Horario Voo']).drop_duplicates().reset_index(drop=True)
+
+        df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
+
+        st.session_state.df_servico_voos_horarios['Paxs Regular']=0
+
+        for index in range(len(st.session_state.df_servico_voos_horarios)):
+
+            servico = st.session_state.df_servico_voos_horarios.at[index, 'Servico']
+
+            voo = st.session_state.df_servico_voos_horarios.at[index, 'Voo']
+
+            h_voo = st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo']
+
+            total_paxs_ref = \
+                df_router_filtrado[(df_router_filtrado['Servico']==servico) & (df_router_filtrado['Voo']==voo) & 
+                                (df_router_filtrado['Horario Voo']==h_voo) & (df_router_filtrado['Modo do Servico']=='REGULAR')]\
+                                    ['Total ADT'].sum() + \
+                                        df_router_filtrado[(df_router_filtrado['Servico']==servico) & 
+                                                        (df_router_filtrado['Voo']==voo) & 
+                                                        (df_router_filtrado['Horario Voo']==h_voo) & 
+                                                        (df_router_filtrado['Modo do Servico']=='REGULAR')]['Total CHD'].sum()
+            
+            st.session_state.df_servico_voos_horarios.at[index, 'Paxs Regular'] = total_paxs_ref
+
+        st.session_state.df_servico_voos_horarios['Horario Voo'] = pd.to_datetime(st.session_state.df_servico_voos_horarios['Horario Voo'], 
+                                                                            format='%H:%M:%S')
+
+        for index in range(len(st.session_state.df_servico_voos_horarios)):
+
+            tipo_translado = st.session_state.df_servico_voos_horarios.at[index, 'Tipo do Translado']
+
+            if tipo_translado=='Internacional':
+
+                st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo Ajustado'] = \
+                    st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo'] - transformar_timedelta(time(1,0))
                 
-            df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
+            else:
 
-            lista_juncoes = st.session_state.df_juncao_voos['Junção'].unique().tolist()
+                st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo Ajustado'] = \
+                    st.session_state.df_servico_voos_horarios.at[index, 'Horario Voo']
+                
+        st.session_state.df_servico_voos_horarios['Horario Voo'] = pd.to_datetime(st.session_state.df_servico_voos_horarios['Horario Voo'], 
+                                                                                format='%H:%M:%S').dt.time
+        
+        st.session_state.df_servico_voos_horarios['Horario Voo Ajustado'] = pd.to_datetime(st.session_state.df_servico_voos_horarios['Horario Voo Ajustado'], 
+                                                                                format='%H:%M:%S').dt.time
+        
+        st.session_state.df_servico_voos_horarios = st.session_state.df_servico_voos_horarios.sort_values(by='Horario Voo Ajustado').reset_index(drop=True)
 
-            lista_voos_com_juncao = st.session_state.df_juncao_voos['Voo'].unique().tolist()
+    # Botão pra limpar todos os dataframes
 
-            lista_voos_sem_juncao = [item for item in st.session_state.df_servico_voos_horarios['Voo'].unique().tolist() if not item in lista_voos_com_juncao]
+    with row2[1]:
 
-            lista_juncoes.extend(lista_voos_sem_juncao)
+        container_botao = st.container()
 
-            lista_reservas_pvt = df_router_filtrado[df_router_filtrado['Modo do Servico']!='REGULAR']['Reserva'].unique().tolist()
+        limpar_tudo = container_botao.button('Limpar Tudo', use_container_width=True)
 
-            lista_juncoes.extend(lista_reservas_pvt)
+    if limpar_tudo:
 
-            juncao_ou_voo = st.selectbox('Escolha a Junção/Voo/Reserva Privativa', lista_juncoes, index=None)
+        st.session_state.df_juncao_voos = st.session_state.df_juncao_voos.iloc[0:0]
 
-            intervalo_inicial_especifico = objeto_intervalo('Antecipação Último Hotel', time(3, 0), 'intervalo_inicial_especifico')
+        st.session_state.df_servico_voos_horarios = st.session_state.df_servico_voos_horarios.iloc[0:0]
 
-            intervalo_inicial_especifico_str = str(intervalo_inicial_especifico)
+        st.session_state.df_horario_esp_ultimo_hotel = st.session_state.df_horario_esp_ultimo_hotel.iloc[0:0]
 
-            if len(intervalo_inicial_especifico_str)==7:
+        st.session_state.df_router_filtrado_2 = st.session_state.df_router_filtrado_2.iloc[0:0]
 
-                intervalo_inicial_especifico_str = f'0{intervalo_inicial_especifico_str}'
+    # Plotar voos do serviço/dia na tela
 
-            lancar_h_esp = st.form_submit_button('Lançar Antecipação Específica')
+    if servico_roteiro and 'df_servico_voos_horarios' in st.session_state:
 
-            if lancar_h_esp:
+        with row2[0]:
 
-                lista_dados = [juncao_ou_voo, intervalo_inicial_especifico_str]
+            st.dataframe(st.session_state.df_servico_voos_horarios, hide_index=True) 
 
-                st.session_state.df_horario_esp_ultimo_hotel.loc[len(st.session_state.df_horario_esp_ultimo_hotel)]=lista_dados
+    # Formulário de Junção de Voos
 
-# Botões pra limpar junções
+    with row2[1]:
 
-with row2[2]:
+        with st.form('juntar_voos_form_novo'):
 
-    row2_1 = st.columns(2)
+            # Captando intervalo entre voos
 
-    # Limpar todas as junções
+            horario_inicial = st.time_input('Horário Inicial Voo (Ajustado)', value=None, key='horario_inicial', step=300)
 
-    with row2_1[0]:
+            horario_final = st.time_input('Horário Final Voo (Ajustado)', value=None, key='horario_final', step=300) 
 
-        limpar_juncoes = st.button('Limpar Todas as Junções')
+            lancar_juncao = st.form_submit_button('Lançar Junção')
 
-    # Limpar junções específicas
+            # Lançando junção
 
-    with row2_1[1]:
+            if lancar_juncao and horario_inicial and horario_final:
 
-        limpar_juncao_esp = st.button('Limpar Junção Específica')
+                # Filtrando dataframe por Horario Voo e Servico
 
-        juncao_limpar = st.number_input('Junção', step=1, value=None, key='juncao_limpar')
+                if horario_inicial and horario_final and servico_roteiro:
 
-    # Se for pra limpar todas as junções
+                    df_voos_hi_hf = st.session_state.df_servico_voos_horarios\
+                        [(st.session_state.df_servico_voos_horarios['Horario Voo Ajustado']>=horario_inicial) & 
+                        (st.session_state.df_servico_voos_horarios['Horario Voo Ajustado']<=horario_final) & 
+                        (st.session_state.df_servico_voos_horarios['Servico']==servico_roteiro)]\
+                            [['Servico', 'Voo', 'Horario Voo', 'Tipo do Translado', 'Paxs Regular']].reset_index(drop=True)
+                    
+                    df_voos_hi_hf = df_voos_hi_hf.rename(columns={'Horario Voo': 'Horário'})
 
-    if limpar_juncoes:
+                    df_voos_hi_hf = df_voos_hi_hf[df_voos_hi_hf['Paxs Regular']!=0].reset_index(drop=True)
 
-        voo=None
+                    df_voos_hi_hf = df_voos_hi_hf[['Servico', 'Voo', 'Horário', 'Tipo do Translado']]
+                
+                    if len(st.session_state.df_juncao_voos)>0:
 
-        st.session_state.df_juncao_voos = pd.DataFrame(columns=['Servico', 'Voo', 'Horário', 'Tipo do Translado', 'Junção'])
+                        juncao_max = st.session_state.df_juncao_voos['Junção'].max()
 
-    # Se for limpar junções específicas
+                        df_voos_hi_hf['Junção'] = juncao_max+1
 
-    if limpar_juncao_esp and juncao_limpar==1: # se a exclusão for da junção 1
+                    else:
 
-        st.session_state.df_juncao_voos = st.session_state.df_juncao_voos[st.session_state.df_juncao_voos['Junção']!=juncao_limpar]\
-        .reset_index(drop=True)
+                        df_voos_hi_hf['Junção'] = 1  
 
-        for index, value in st.session_state.df_juncao_voos['Junção'].items():
+                st.session_state.df_juncao_voos = pd.concat([st.session_state.df_juncao_voos, df_voos_hi_hf], ignore_index=True)
 
-            st.session_state.df_juncao_voos.at[index, 'Junção']-=1
+    # Voos não operantes e multiselect p/ horários específicos de último hotel em junções ou voos
 
-    elif limpar_juncao_esp and juncao_limpar: # se a exclusão não for da junção 1
+    with row2[1]:
 
-        st.session_state.df_juncao_voos = st.session_state.df_juncao_voos[st.session_state.df_juncao_voos['Junção']!=juncao_limpar].reset_index(drop=True)
+        voos_nao_operantes = st.multiselect('Voos s/ Operar', sorted(lista_voos_data_roteiro))
 
-        juncao_ref=1
+        horario_ultimo_hotel_especifico = st.multiselect('Usar antecipação específica de último hotel p/ voo, junção ou reserva privativa?', ['Sim'])
 
-        for juncao in st.session_state.df_juncao_voos['Junção'].unique().tolist():
+    # Plotando formulário para lançamento de horários específicos de último hotel em junções ou voos
 
-            if juncao>1:
+    if len(horario_ultimo_hotel_especifico)>0:
 
-                juncao_ref+=1
+        with row2[1]:
 
-                st.session_state.df_juncao_voos.loc[st.session_state.df_juncao_voos['Junção']==juncao, 'Junção']=juncao_ref   
+            with st.form('horario_ph_especifico'):
 
-    container_df_juncao_voos = st.container()     
+                if tipo_de_transfer=='OUT':
 
-    container_df_juncao_voos.dataframe(st.session_state.df_juncao_voos, hide_index=True, use_container_width=True)
+                    df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                                    (st.session_state.df_router['Tipo de Servico']=='OUT') & 
+                                                                    (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
+                                                                    (st.session_state.df_router['Servico']==servico_roteiro)]\
+                                                                        .reset_index(drop=True)
+                    
+                elif tipo_de_transfer=='IN':
 
-# Plotar botão de limpar lançamentos de horários específicos p/ junções/voos e plotar dataframe com os lançamentos
+                    df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                                    (st.session_state.df_router['Tipo de Servico']=='IN') & 
+                                                                    (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
+                                                                    (st.session_state.df_router['Servico']==servico_roteiro)]\
+                                                                        .reset_index(drop=True)
+                    
+                df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
 
-if servico_roteiro and 'df_horario_esp_ultimo_hotel' in st.session_state:
+                lista_juncoes = st.session_state.df_juncao_voos['Junção'].unique().tolist()
+
+                lista_voos_com_juncao = st.session_state.df_juncao_voos['Voo'].unique().tolist()
+
+                lista_voos_sem_juncao = [item for item in st.session_state.df_servico_voos_horarios['Voo'].unique().tolist() if not item in lista_voos_com_juncao]
+
+                lista_juncoes.extend(lista_voos_sem_juncao)
+
+                lista_reservas_pvt = df_router_filtrado[df_router_filtrado['Modo do Servico']!='REGULAR']['Reserva'].unique().tolist()
+
+                lista_juncoes.extend(lista_reservas_pvt)
+
+                juncao_ou_voo = st.selectbox('Escolha a Junção/Voo/Reserva Privativa', lista_juncoes, index=None)
+
+                intervalo_inicial_especifico = objeto_intervalo('Antecipação Último Hotel', time(3, 0), 'intervalo_inicial_especifico')
+
+                intervalo_inicial_especifico_str = str(intervalo_inicial_especifico)
+
+                if len(intervalo_inicial_especifico_str)==7:
+
+                    intervalo_inicial_especifico_str = f'0{intervalo_inicial_especifico_str}'
+
+                lancar_h_esp = st.form_submit_button('Lançar Antecipação Específica')
+
+                if lancar_h_esp:
+
+                    lista_dados = [juncao_ou_voo, intervalo_inicial_especifico_str]
+
+                    st.session_state.df_horario_esp_ultimo_hotel.loc[len(st.session_state.df_horario_esp_ultimo_hotel)]=lista_dados
+
+    # Botões pra limpar junções
 
     with row2[2]:
 
-        limpar_lancamentos = st.button('Limpar Lançamentos')
+        row2_1 = st.columns(2)
 
-        if limpar_lancamentos:
+        # Limpar todas as junções
 
-            st.session_state.df_horario_esp_ultimo_hotel = pd.DataFrame(columns=['Junção/Voo/Reserva', 'Antecipação Último Hotel'])
+        with row2_1[0]:
 
-        st.dataframe(st.session_state.df_horario_esp_ultimo_hotel, hide_index=True) 
+            limpar_juncoes = st.button('Limpar Todas as Junções')
 
-# Roteirizando Regiões
+        # Limpar junções específicas
 
-if roteirizar:
+        with row2_1[1]:
 
-    puxar_sequencias_hoteis('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Hoteis Joao Pessoa', 'Hoteis Pitimbu', 'Hoteis Campina Grande'], ['df_joao_pessoa', 'df_pitimbu', 'df_campina_grande'])
+            limpar_juncao_esp = st.button('Limpar Junção Específica')
 
-    st.session_state.dict_regioes_hoteis = \
-        {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
+            juncao_limpar = st.number_input('Junção', step=1, value=None, key='juncao_limpar')
+
+        # Se for pra limpar todas as junções
+
+        if limpar_juncoes:
+
+            voo=None
+
+            st.session_state.df_juncao_voos = pd.DataFrame(columns=['Servico', 'Voo', 'Horário', 'Tipo do Translado', 'Junção'])
+
+        # Se for limpar junções específicas
+
+        if limpar_juncao_esp and juncao_limpar==1: # se a exclusão for da junção 1
+
+            st.session_state.df_juncao_voos = st.session_state.df_juncao_voos[st.session_state.df_juncao_voos['Junção']!=juncao_limpar]\
+            .reset_index(drop=True)
+
+            for index, value in st.session_state.df_juncao_voos['Junção'].items():
+
+                st.session_state.df_juncao_voos.at[index, 'Junção']-=1
+
+        elif limpar_juncao_esp and juncao_limpar: # se a exclusão não for da junção 1
+
+            st.session_state.df_juncao_voos = st.session_state.df_juncao_voos[st.session_state.df_juncao_voos['Junção']!=juncao_limpar].reset_index(drop=True)
+
+            juncao_ref=1
+
+            for juncao in st.session_state.df_juncao_voos['Junção'].unique().tolist():
+
+                if juncao>1:
+
+                    juncao_ref+=1
+
+                    st.session_state.df_juncao_voos.loc[st.session_state.df_juncao_voos['Junção']==juncao, 'Junção']=juncao_ref   
+
+        container_df_juncao_voos = st.container()     
+
+        container_df_juncao_voos.dataframe(st.session_state.df_juncao_voos, hide_index=True, use_container_width=True)
+
+    # Plotar botão de limpar lançamentos de horários específicos p/ junções/voos e plotar dataframe com os lançamentos
+
+    if servico_roteiro and 'df_horario_esp_ultimo_hotel' in st.session_state:
+
+        with row2[2]:
+
+            limpar_lancamentos = st.button('Limpar Lançamentos')
+
+            if limpar_lancamentos:
+
+                st.session_state.df_horario_esp_ultimo_hotel = pd.DataFrame(columns=['Junção/Voo/Reserva', 'Antecipação Último Hotel'])
+
+            st.dataframe(st.session_state.df_horario_esp_ultimo_hotel, hide_index=True) 
+
+    # Roteirizando Regiões
+
+    if roteirizar:
+
+        puxar_sequencias_hoteis('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Hoteis Joao Pessoa', 'Hoteis Pitimbu', 'Hoteis Campina Grande'], ['df_joao_pessoa', 'df_pitimbu', 'df_campina_grande'])
+
+        st.session_state.dict_regioes_hoteis = \
+            {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
+            'HOTÉIS PITIMBU / AEROPORTO RECIFE': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
+            'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+            'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
                                                             'Campina Grande'], 
-        'HOTÉIS PITIMBU / AEROPORTO RECIFE': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
-        'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
-        'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
-                                                        'Campina Grande'], 
-        'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
-        'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú']}
+            'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+            'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'],
+            'AEROPORTO JOÃO PESSOA / HOTEIS JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+            'AEROPORTO JOÃO PESSOA / HOTÉIS PITIMBU': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
+            'AEROPORTO JOÃO PESSOA / HOTÉIS CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'],
+            'AEROPORTO RECIFE / HOTÉIS JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+            'AEROPORTO RECIFE / HOTÉIS PITIMBU': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'],
+            'AEROPORTO CAMPINA GRANDE / HOTEL CAMPINA GRANDE' : ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande']}
 
-    nome_df_hotel = st.session_state.dict_regioes_hoteis[servico_roteiro][0]
+        nome_df_hotel = st.session_state.dict_regioes_hoteis[servico_roteiro][0]
 
-    nome_html_ref = st.session_state.dict_regioes_hoteis[servico_roteiro][1]
+        nome_html_ref = st.session_state.dict_regioes_hoteis[servico_roteiro][1]
 
-    nome_aba_excel = st.session_state.dict_regioes_hoteis[servico_roteiro][2]
+        nome_aba_excel = st.session_state.dict_regioes_hoteis[servico_roteiro][2]
 
-    nome_regiao = st.session_state.dict_regioes_hoteis[servico_roteiro][3]
+        nome_regiao = st.session_state.dict_regioes_hoteis[servico_roteiro][3]
 
-    df_hoteis_ref = st.session_state[nome_df_hotel]
+        df_hoteis_ref = st.session_state[nome_df_hotel]
 
-    verificar_preenchimento_df_hoteis(df_hoteis_ref)
+        verificar_preenchimento_df_hoteis(df_hoteis_ref)
 
-    df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
-                                                    (st.session_state.df_router['Tipo de Servico']=='OUT') &  
-                                                    (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
-                                                    (st.session_state.df_router['Servico']==servico_roteiro) & 
-                                                    ~(st.session_state.df_router['Voo'].isin(voos_nao_operantes))].reset_index(drop=True)
+        if tipo_de_transfer=='OUT':
+
+            df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                            (st.session_state.df_router['Tipo de Servico']=='OUT') &  
+                                                            (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
+                                                            (st.session_state.df_router['Servico']==servico_roteiro) & 
+                                                            ~(st.session_state.df_router['Voo'].isin(voos_nao_operantes))].reset_index(drop=True)
+            
+        elif tipo_de_transfer=='IN':
+
+            df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                            (st.session_state.df_router['Tipo de Servico']=='IN') &  
+                                                            (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
+                                                            (st.session_state.df_router['Servico']==servico_roteiro) & 
+                                                            ~(st.session_state.df_router['Voo'].isin(voos_nao_operantes))].reset_index(drop=True)
+            
+            df_router_filtrado = df_router_filtrado.rename(columns={'Est Origem': 'Est Destino', 'Est Destino': 'Est Origem'})
+        
+        # Excluindo linhas onde exite 'CLD' na observação
+
+        df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
+
+        if len(df_router_filtrado)==0:
+        
+            st.error('Depois de filtrar as reservas com CLD na observação não sobraram serviços para roteirizar.')
+
+            st.stop()
+        
+        # Verificando se todos os hoteis estão na lista da sequência
     
-    # Categorizando serviços com 'CADEIRANTE' na observação
-    
-    # df_router_filtrado['Modo do Servico'] = df_router_filtrado.apply(
-    #     lambda row: 'CADEIRANTE' if verificar_cadeirante(row['Observacao']) else row['Modo do Servico'], axis=1)
-    
-    # Excluindo linhas onde exite 'CLD' na observação
+        itens_faltantes, lista_hoteis_df_router = gerar_itens_faltantes(df_router_filtrado, df_hoteis_ref)
 
-    df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
+        pax_max_utilitario = 4
 
-    if len(df_router_filtrado)==0:
-    
-        st.error('Depois de filtrar as reservas com CLD na observação não sobraram serviços para roteirizar.')
+        pax_max_van = 18
 
-        st.stop()
-    
-    # Verificando se todos os hoteis estão na lista da sequência
- 
-    itens_faltantes, lista_hoteis_df_router = gerar_itens_faltantes(df_router_filtrado, df_hoteis_ref)
+        pax_max_micro = 37
 
-    pax_max_utilitario = 4
+        if len(itens_faltantes)==0:
 
-    pax_max_van = 18
+            # Mensagens de andamento do script informando como foi a verificação dos hoteis cadastrados
 
-    pax_max_micro = 37
+            st.success('Todos os hoteis estão cadastrados na lista de sequência de hoteis')
 
-    if len(itens_faltantes)==0:
+            df_router_filtrado_2 = criar_df_servicos_2(df_router_filtrado, st.session_state.df_juncao_voos, df_hoteis_ref)
 
-        # Mensagens de andamento do script informando como foi a verificação dos hoteis cadastrados
+            # Inserir coluna com horários específicos de junções/voos
 
-        st.success('Todos os hoteis estão cadastrados na lista de sequência de hoteis')
+            df_router_filtrado_2 = inserir_coluna_horario_ultimo_hotel(df_router_filtrado_2)
 
-        df_router_filtrado_2 = criar_df_servicos_2(df_router_filtrado, st.session_state.df_juncao_voos, df_hoteis_ref)
+            roteiro = 0
 
-        # Inserir coluna com horários específicos de junções/voos
+            df_router_filtrado_2['Horario Voo'] = pd.to_datetime(df_router_filtrado_2['Horario Voo'], format='%H:%M:%S').dt.time
 
-        df_router_filtrado_2 = inserir_coluna_horario_ultimo_hotel(df_router_filtrado_2)
+            # Criando dataframe que vai receber os hoteis que tem mais paxs que a capacidade máxima da frota
 
-        roteiro = 0
+            lista_colunas = ['index']
 
-        df_router_filtrado_2['Horario Voo'] = pd.to_datetime(df_router_filtrado_2['Horario Voo'], format='%H:%M:%S').dt.time
+            df_hoteis_pax_max = pd.DataFrame(columns=lista_colunas.extend(df_router_filtrado_2.columns.tolist()))
 
-        # Criando dataframe que vai receber os hoteis que tem mais paxs que a capacidade máxima da frota
+            # Roteirizando hoteis que podem receber ônibus com mais paxs que a capacidade máxima da frota
 
-        lista_colunas = ['index']
+            df_router_filtrado_2, df_hoteis_pax_max, roteiro = \
+                roteirizar_hoteis_mais_pax_max(df_router_filtrado_2, roteiro, df_hoteis_pax_max)
 
-        df_hoteis_pax_max = pd.DataFrame(columns=lista_colunas.extend(df_router_filtrado_2.columns.tolist()))
+            # Gerando horários de apresentação
 
-        # Roteirizando hoteis que podem receber ônibus com mais paxs que a capacidade máxima da frota
+            df_router_filtrado_2, roteiro = gerar_horarios_apresentacao(df_router_filtrado_2, roteiro, st.session_state.max_hoteis)
 
-        df_router_filtrado_2, df_hoteis_pax_max, roteiro = \
-            roteirizar_hoteis_mais_pax_max(df_router_filtrado_2, roteiro, df_hoteis_pax_max)
+        else:
 
-        # Gerando horários de apresentação
+            inserir_hoteis_faltantes(itens_faltantes, df_hoteis_ref, nome_aba_excel, nome_regiao)
 
-        df_router_filtrado_2, roteiro = gerar_horarios_apresentacao(df_router_filtrado_2, roteiro, st.session_state.max_hoteis)
+            st.stop()
 
-    else:
+        df_router_filtrado_2 = recalcular_horarios_menor_horario(df_router_filtrado_2)
 
-        inserir_hoteis_faltantes(itens_faltantes, df_hoteis_ref, nome_aba_excel, nome_regiao)
+        # Gerando roteiros alternativos
 
-        st.stop()
+        df_roteiros_alternativos = gerar_roteiros_alternativos(df_router_filtrado_2)
 
-    df_router_filtrado_2 = recalcular_horarios_menor_horario(df_router_filtrado_2)
+        df_roteiros_alternativos = recalcular_horarios_menor_horario(df_roteiros_alternativos)
 
-    # Gerando roteiros alternativos
+        # Gerando roteiros alternativos 2
 
-    df_roteiros_alternativos = gerar_roteiros_alternativos(df_router_filtrado_2)
+        max_hoteis_2 = 10
 
-    df_roteiros_alternativos = recalcular_horarios_menor_horario(df_roteiros_alternativos)
+        intervalo_pu_hotel_2 = pd.Timedelta(hours=1)
 
-    # Gerando roteiros alternativos 2
+        df_roteiros_alternativos_2 = gerar_roteiros_alternativos_2(df_router_filtrado_2, max_hoteis_2, intervalo_pu_hotel_2)
 
-    max_hoteis_2 = 10
+        df_roteiros_alternativos_2 = recalcular_horarios_menor_horario(df_roteiros_alternativos_2)
 
-    intervalo_pu_hotel_2 = pd.Timedelta(hours=1)
+        df_roteiros_alternativos_3 = gerar_roteiros_alternativos_3(df_router_filtrado_2)
 
-    df_roteiros_alternativos_2 = gerar_roteiros_alternativos_2(df_router_filtrado_2, max_hoteis_2, intervalo_pu_hotel_2)
+        df_roteiros_alternativos_3 = recalcular_horarios_menor_horario(df_roteiros_alternativos_3)
 
-    df_roteiros_alternativos_2 = recalcular_horarios_menor_horario(df_roteiros_alternativos_2)
+        df_roteiros_alternativos_4 = gerar_roteiros_alternativos_4(df_router_filtrado_2, pax_max_utilitario, pax_max_van, pax_max_micro, max_hoteis_2)
 
-    df_roteiros_alternativos_3 = gerar_roteiros_alternativos_3(df_router_filtrado_2)
+        df_roteiros_alternativos_4 = recalcular_horarios_menor_horario(df_roteiros_alternativos_4)
 
-    df_roteiros_alternativos_3 = recalcular_horarios_menor_horario(df_roteiros_alternativos_3)
+        df_roteiros_alternativos = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos)
 
-    df_roteiros_alternativos_4 = gerar_roteiros_alternativos_4(df_router_filtrado_2, pax_max_utilitario, pax_max_van, pax_max_micro, max_hoteis_2)
+        df_roteiros_alternativos_2 = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos_2)
 
-    df_roteiros_alternativos_4 = recalcular_horarios_menor_horario(df_roteiros_alternativos_4)
+        df_roteiros_alternativos_2 = verificar_rotas_identicas(df_roteiros_alternativos, df_roteiros_alternativos_2)
 
-    df_roteiros_alternativos = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos)
+        df_roteiros_alternativos_3 = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos_3)
 
-    df_roteiros_alternativos_2 = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos_2)
+        df_roteiros_alternativos_3 = verificar_rotas_identicas(df_roteiros_alternativos_2, df_roteiros_alternativos_3)
 
-    df_roteiros_alternativos_2 = verificar_rotas_identicas(df_roteiros_alternativos, df_roteiros_alternativos_2)
+        df_roteiros_alternativos_3 = verificar_rotas_identicas(df_roteiros_alternativos, df_roteiros_alternativos_3)
 
-    df_roteiros_alternativos_3 = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos_3)
+        df_roteiros_alternativos_4 = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos_4)
 
-    df_roteiros_alternativos_3 = verificar_rotas_identicas(df_roteiros_alternativos_2, df_roteiros_alternativos_3)
+        df_roteiros_alternativos_4 = verificar_rotas_identicas(df_roteiros_alternativos_3, df_roteiros_alternativos_4)
 
-    df_roteiros_alternativos_3 = verificar_rotas_identicas(df_roteiros_alternativos, df_roteiros_alternativos_3)
+        df_roteiros_alternativos_4 = verificar_rotas_identicas(df_roteiros_alternativos_2, df_roteiros_alternativos_4)
 
-    df_roteiros_alternativos_4 = verificar_rotas_identicas(df_router_filtrado_2, df_roteiros_alternativos_4)
+        df_roteiros_alternativos_4 = verificar_rotas_identicas(df_roteiros_alternativos, df_roteiros_alternativos_4)
 
-    df_roteiros_alternativos_4 = verificar_rotas_identicas(df_roteiros_alternativos_3, df_roteiros_alternativos_4)
+        # Plotando roteiros de cada carro
 
-    df_roteiros_alternativos_4 = verificar_rotas_identicas(df_roteiros_alternativos_2, df_roteiros_alternativos_4)
+        st.divider()
 
-    df_roteiros_alternativos_4 = verificar_rotas_identicas(df_roteiros_alternativos, df_roteiros_alternativos_4)
+        row_warning = st.columns(1)
 
-    # Plotando roteiros de cada carro
+        row3 = st.columns(3)
 
-    st.divider()
+        coluna = 0
 
-    row_warning = st.columns(1)
+        hora_execucao = datetime.now()
+        
+        hora_execucao_menos_3h = hora_execucao - timedelta(hours=3)
 
-    row3 = st.columns(3)
+        hora_execucao = hora_execucao_menos_3h.strftime("%d-%m-%Y %Hh%Mm")
 
-    coluna = 0
+        st.session_state.nome_html = f"{hora_execucao} {nome_html_ref}.html"
 
-    hora_execucao = datetime.now()
-    
-    hora_execucao_menos_3h = hora_execucao - timedelta(hours=3)
+        st.session_state.data_roteiro_ref = data_roteiro.strftime("%d/%m/%Y")
 
-    hora_execucao = hora_execucao_menos_3h.strftime("%d-%m-%Y %Hh%Mm")
+        st.session_state.df_hoteis_pax_max = df_hoteis_pax_max
 
-    st.session_state.nome_html = f"{hora_execucao} {nome_html_ref}.html"
+        st.session_state.df_router_filtrado_2 = df_router_filtrado_2
 
-    st.session_state.data_roteiro_ref = data_roteiro.strftime("%d/%m/%Y")
+        st.session_state.df_roteiros_alternativos = df_roteiros_alternativos
 
-    st.session_state.df_hoteis_pax_max = df_hoteis_pax_max
+        st.session_state.df_roteiros_alternativos_2 = df_roteiros_alternativos_2
 
-    st.session_state.df_router_filtrado_2 = df_router_filtrado_2
+        st.session_state.df_roteiros_alternativos_3 = df_roteiros_alternativos_3
 
-    st.session_state.df_roteiros_alternativos = df_roteiros_alternativos
+        st.session_state.df_roteiros_alternativos_4 = df_roteiros_alternativos_4
 
-    st.session_state.df_roteiros_alternativos_2 = df_roteiros_alternativos_2
-
-    st.session_state.df_roteiros_alternativos_3 = df_roteiros_alternativos_3
-
-    st.session_state.df_roteiros_alternativos_4 = df_roteiros_alternativos_4
-
-    verificar_rotas_alternativas_ou_plotar_roteiros_sem_apoio(df_roteiros_alternativos, row_warning, row3, coluna, df_hoteis_pax_max, 
-                                                    df_router_filtrado_2, st.session_state.df_juncao_voos, st.session_state.nome_html)
+        verificar_rotas_alternativas_ou_plotar_roteiros_sem_apoio(df_roteiros_alternativos, row_warning, row3, coluna, df_hoteis_pax_max, 
+                                                        df_router_filtrado_2, st.session_state.df_juncao_voos, st.session_state.nome_html)
 
 if 'nome_html' in st.session_state and (len(st.session_state.df_roteiros_alternativos)>0 or len(st.session_state.df_roteiros_alternativos_2)>0 or len(st.session_state.df_roteiros_alternativos_3)>0 or \
         len(st.session_state.df_roteiros_alternativos_4)>0):
@@ -3942,6 +4217,8 @@ if 'nome_html' in st.session_state and (len(st.session_state.df_roteiros_alterna
 
                     html_content = file.read()
 
+                salvar_rotas_historico(df_pdf)
+
                 st.download_button(
                     label="Baixar Arquivo HTML",
                     data=html_content,
@@ -3958,3 +4235,71 @@ if 'df_insercao' in st.session_state and len(st.session_state.df_insercao)>0:
         df_insercao = atualizar_banco_dados(st.session_state.df_insercao, 'test_phoenix_joao_pessoa')
 
         st.rerun()
+
+# if tipo_de_transfer=='OUT':
+
+#     if servico_roteiro and data_roteiro:
+
+#         enviar_informes = st.button(f'Enviar Informativos de Saída - {servico_roteiro} | {data_roteiro.strftime("%d/%m/%Y")}')
+
+#         if enviar_informes:
+
+#             puxar_historico('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Histórico Roteiros'], ['df_historico_roteiros'])
+
+#             st.session_state.df_historico_roteiros['Data Execucao'] = pd.to_datetime(st.session_state.df_historico_roteiros['Data Execucao']).dt.date
+
+#             st.session_state.df_historico_roteiros['Id_Servico'] = pd.to_numeric(st.session_state.df_historico_roteiros['Id_Servico'])
+
+#             df_ref_thiago = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
+#                                                                    (st.session_state.df_historico_roteiros['Servico']==servico_roteiro)].reset_index(drop=True)
+            
+#             df_verificacao = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+#                                                         (st.session_state.df_router['Servico']==servico_roteiro)].reset_index(drop=True)
+            
+#             id_servicos_verificacao = set(df_verificacao['Id_Servico'])
+#             id_servicos_ref_thiago = set(df_ref_thiago['Id_Servico'])
+
+#             id_servicos_unicos = id_servicos_verificacao - id_servicos_ref_thiago
+
+#             reservas_nao_roteirizadas = df_verificacao.loc[~df_verificacao['Id_Servico'].isin(df_ref_thiago['Id_Servico']), 'Reserva'].unique()
+
+#             if len(reservas_nao_roteirizadas)>0:
+
+#                 nome_reservas = ', '.join(reservas_nao_roteirizadas)
+
+#                 st.warning(f'As reservas {nome_reservas} não foram roteirizadas e, portanto, não foi enviado informativos de saída para elas')
+
+#             dict_tag_servico = \
+#                 {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
+#                 'HOTÉIS PITIMBU / AEROPORTO RECIFE': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
+#                 'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+#                 'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
+#                                                                 'Campina Grande'], 
+#                 'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+#                 'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú']}
+
+#             if len(df_ref_thiago)>0:
+
+#                 lista_ids_servicos = df_ref_thiago['Id_Servico'].tolist()
+
+#                 webhook_thiago = "https://conexao.multiatend.com.br/webhook/luckenvioinformativojoaopessoa"
+                
+#                 data_roteiro_str = data_roteiro.strftime('%Y-%m-%d')
+                
+#                 payload = {"data": data_roteiro_str, 
+#                            "ids_servicos": lista_ids_servicos, 
+#                            "tag_servico": dict_tag_servico[servico_roteiro]}
+            
+#                 st.error('Essa função ainda não foi implantada na sua base.')
+
+#                 response = requests.post(webhook_thiago, json=payload)
+                
+#                 if response.status_code == 200:
+                    
+#                         st.success(f"Informativos Enviados com Sucesso!")
+                    
+#                 else:
+                    
+#                     st.error(f"Erro. Favor contactar o suporte")
+
+#                     st.error(f"{response}")
