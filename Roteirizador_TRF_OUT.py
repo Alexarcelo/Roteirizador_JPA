@@ -2321,9 +2321,16 @@ def verificar_rotas_alternativas_ou_plotar_roteiros_sem_apoio(df_roteiros_altern
 
         df_pdf = df_pdf.sort_values(by=['Horario Voo / Menor Horário', 'Junção']).reset_index(drop=True)
 
+        df_pdf_3 = df_pdf.groupby(['Roteiro', 'Carros']).agg({'Modo do Servico': 'first', 'Servico': 'first', 'Voo': transformar_em_string, 'Horario Voo / Menor Horário': 'first', 
+                                                              'Total ADT | CHD': 'sum'}).reset_index()
+        
+        df_pdf_3 = df_pdf_3.sort_values(by='Horario Voo / Menor Horário')
+
+        df_pdf_3['Total ADT | CHD'] = df_pdf_3['Total ADT | CHD'].astype(int)
+
         inserir_roteiros_html_sem_apoio(nome_html, df_pdf)
 
-        inserir_html_2(nome_html, df_pdf_2)
+        inserir_html_3(nome_html, df_pdf_3)
 
         with open(nome_html, "r", encoding="utf-8") as file:
 
@@ -3436,6 +3443,22 @@ def salvar_rotas_historico(df_pdf):
 
     inserir_df_rotas_geradas('Histórico Roteiros', st.session_state.df_historico_roteiros)
 
+def transformar_em_string(apoio):
+
+    return ' + '.join(list(set(apoio.dropna())))
+
+def inserir_html_3(nome_html, df):
+
+    html = definir_html(df)
+
+    with open(nome_html, "a", encoding="utf-8") as file:
+
+        file.write('<br><br><br>')
+
+        file.write(f'<p style="font-size:40px;">Resumo Roteiros</p>\n\n')
+        
+        file.write(html)
+        
 st.set_page_config(layout='wide')
 
 # Validando usuários antes de mostrar qualquer coisa na tela
@@ -4209,9 +4232,16 @@ if 'nome_html' in st.session_state and (len(st.session_state.df_roteiros_alterna
 
                 df_pdf = df_pdf.sort_values(by=['Horario Voo / Menor Horário', 'Junção']).reset_index(drop=True)
 
+                df_pdf_3 = df_pdf.groupby(['Roteiro', 'Carros']).agg({'Modo do Servico': 'first', 'Servico': 'first', 'Voo': transformar_em_string, 'Horario Voo / Menor Horário': 'first', 
+                                                                      'Total ADT | CHD': 'sum'}).reset_index()
+                
+                df_pdf_3 = df_pdf_3.sort_values(by='Horario Voo / Menor Horário')
+
+                df_pdf_3['Total ADT | CHD'] = df_pdf_3['Total ADT | CHD'].astype(int)
+
                 inserir_roteiros_html_sem_apoio(st.session_state.nome_html, df_pdf)
 
-                inserir_html_2(st.session_state.nome_html, df_pdf_2)
+                inserir_html_3(st.session_state.nome_html, df_pdf_3)
 
                 with open(st.session_state.nome_html, "r", encoding="utf-8") as file:
 
