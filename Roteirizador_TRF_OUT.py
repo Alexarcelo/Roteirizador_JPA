@@ -3583,7 +3583,7 @@ if tipo_de_transfer:
 
         lista_servicos = df_router_data_roteiro['Servico'].unique().tolist()
 
-        lista_voos_data_roteiro = df_router_data_roteiro['Voo'].unique().tolist()
+        lista_voos_data_roteiro = df_router_data_roteiro['Voo'].dropna().unique().tolist()
 
         # Seleção de serviço
 
