@@ -2322,7 +2322,7 @@ def verificar_rotas_alternativas_ou_plotar_roteiros_sem_apoio(df_roteiros_altern
         df_pdf = df_pdf.sort_values(by=['Horario Voo / Menor Horário', 'Junção']).reset_index(drop=True)
 
         df_pdf_3 = df_pdf.groupby(['Roteiro', 'Carros']).agg({'Modo do Servico': 'first', 'Servico': 'first', 'Voo': transformar_em_string, 'Horario Voo / Menor Horário': 'first', 
-                                                              'Total ADT | CHD': 'sum'}).reset_index()
+                                                              'Data Horario Apresentacao': 'min', 'Total ADT | CHD': 'sum'}).reset_index()
         
         df_pdf_3 = df_pdf_3.sort_values(by='Horario Voo / Menor Horário')
 
@@ -4233,7 +4233,7 @@ if 'nome_html' in st.session_state and (len(st.session_state.df_roteiros_alterna
                 df_pdf = df_pdf.sort_values(by=['Horario Voo / Menor Horário', 'Junção']).reset_index(drop=True)
 
                 df_pdf_3 = df_pdf.groupby(['Roteiro', 'Carros']).agg({'Modo do Servico': 'first', 'Servico': 'first', 'Voo': transformar_em_string, 'Horario Voo / Menor Horário': 'first', 
-                                                                      'Total ADT | CHD': 'sum'}).reset_index()
+                                                              'Data Horario Apresentacao': 'min', 'Total ADT | CHD': 'sum'}).reset_index()
                 
                 df_pdf_3 = df_pdf_3.sort_values(by='Horario Voo / Menor Horário')
 
