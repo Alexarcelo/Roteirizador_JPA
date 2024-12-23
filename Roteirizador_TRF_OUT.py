@@ -4278,70 +4278,70 @@ if 'df_insercao' in st.session_state and len(st.session_state.df_insercao)>0:
 
         st.rerun()
 
-# if tipo_de_transfer=='OUT':
+if tipo_de_transfer=='OUT':
 
-#     if servico_roteiro and data_roteiro:
+    if servico_roteiro and data_roteiro:
 
-#         enviar_informes = st.button(f'Enviar Informativos de Saída - {servico_roteiro} | {data_roteiro.strftime("%d/%m/%Y")}')
+        enviar_informes = st.button(f'Enviar Informativos de Saída - {servico_roteiro} | {data_roteiro.strftime("%d/%m/%Y")}')
 
-#         if enviar_informes:
+        if enviar_informes:
 
-#             puxar_historico('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Histórico Roteiros'], ['df_historico_roteiros'])
+            puxar_historico('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Histórico Roteiros'], ['df_historico_roteiros'])
 
-#             st.session_state.df_historico_roteiros['Data Execucao'] = pd.to_datetime(st.session_state.df_historico_roteiros['Data Execucao']).dt.date
+            st.session_state.df_historico_roteiros['Data Execucao'] = pd.to_datetime(st.session_state.df_historico_roteiros['Data Execucao']).dt.date
 
-#             st.session_state.df_historico_roteiros['Id_Servico'] = pd.to_numeric(st.session_state.df_historico_roteiros['Id_Servico'])
+            st.session_state.df_historico_roteiros['Id_Servico'] = pd.to_numeric(st.session_state.df_historico_roteiros['Id_Servico'])
 
-#             df_ref_thiago = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
-#                                                                    (st.session_state.df_historico_roteiros['Servico']==servico_roteiro)].reset_index(drop=True)
+            df_ref_thiago = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
+                                                                   (st.session_state.df_historico_roteiros['Servico']==servico_roteiro)].reset_index(drop=True)
             
-#             df_verificacao = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
-#                                                         (st.session_state.df_router['Servico']==servico_roteiro)].reset_index(drop=True)
+            df_verificacao = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & 
+                                                        (st.session_state.df_router['Servico']==servico_roteiro)].reset_index(drop=True)
             
-#             id_servicos_verificacao = set(df_verificacao['Id_Servico'])
-#             id_servicos_ref_thiago = set(df_ref_thiago['Id_Servico'])
+            id_servicos_verificacao = set(df_verificacao['Id_Servico'])
+            id_servicos_ref_thiago = set(df_ref_thiago['Id_Servico'])
 
-#             id_servicos_unicos = id_servicos_verificacao - id_servicos_ref_thiago
+            id_servicos_unicos = id_servicos_verificacao - id_servicos_ref_thiago
 
-#             reservas_nao_roteirizadas = df_verificacao.loc[~df_verificacao['Id_Servico'].isin(df_ref_thiago['Id_Servico']), 'Reserva'].unique()
+            reservas_nao_roteirizadas = df_verificacao.loc[~df_verificacao['Id_Servico'].isin(df_ref_thiago['Id_Servico']), 'Reserva'].unique()
 
-#             if len(reservas_nao_roteirizadas)>0:
+            if len(reservas_nao_roteirizadas)>0:
 
-#                 nome_reservas = ', '.join(reservas_nao_roteirizadas)
+                nome_reservas = ', '.join(reservas_nao_roteirizadas)
 
-#                 st.warning(f'As reservas {nome_reservas} não foram roteirizadas e, portanto, não foi enviado informativos de saída para elas')
+                st.warning(f'As reservas {nome_reservas} não foram roteirizadas e, portanto, não foi enviado informativos de saída para elas')
 
-#             dict_tag_servico = \
-#                 {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
-#                 'HOTÉIS PITIMBU / AEROPORTO RECIFE': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
-#                 'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
-#                 'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
-#                                                                 'Campina Grande'], 
-#                 'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
-#                 'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú']}
+            dict_tag_servico = \
+                {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
+                'HOTÉIS PITIMBU / AEROPORTO RECIFE': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
+                'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+                'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
+                                                                'Campina Grande'], 
+                'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
+                'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú']}
 
-#             if len(df_ref_thiago)>0:
+            if len(df_ref_thiago)>0:
 
-#                 lista_ids_servicos = df_ref_thiago['Id_Servico'].tolist()
+                lista_ids_servicos = df_ref_thiago['Id_Servico'].tolist()
 
-#                 webhook_thiago = "https://conexao.multiatend.com.br/webhook/luckenvioinformativojoaopessoa"
+                webhook_thiago = "https://conexao.multiatend.com.br/webhook/luckenvioinformativojoaopessoa"
                 
-#                 data_roteiro_str = data_roteiro.strftime('%Y-%m-%d')
+                data_roteiro_str = data_roteiro.strftime('%Y-%m-%d')
                 
-#                 payload = {"data": data_roteiro_str, 
-#                            "ids_servicos": lista_ids_servicos, 
-#                            "tag_servico": dict_tag_servico[servico_roteiro]}
+                payload = {"data": data_roteiro_str, 
+                           "ids_servicos": lista_ids_servicos, 
+                           "tag_servico": dict_tag_servico[servico_roteiro]}
             
-#                 st.error('Essa função ainda não foi implantada na sua base.')
+                st.error('Essa função ainda não foi implantada na sua base.')
 
-#                 response = requests.post(webhook_thiago, json=payload)
+                response = requests.post(webhook_thiago, json=payload)
                 
-#                 if response.status_code == 200:
+                if response.status_code == 200:
                     
-#                         st.success(f"Informativos Enviados com Sucesso!")
+                        st.success(f"Informativos Enviados com Sucesso!")
                     
-#                 else:
+                else:
                     
-#                     st.error(f"Erro. Favor contactar o suporte")
+                    st.error(f"Erro. Favor contactar o suporte")
 
-#                     st.error(f"{response}")
+                    st.error(f"{response}")
