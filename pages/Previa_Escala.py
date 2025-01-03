@@ -374,7 +374,7 @@ def ajustar_nomes_ilha_extremo(df_tt):
     df_tt['Passeios | OUT'] = df_tt.apply(lambda row: f"{row['Passeios | OUT']}\nPonto de Apoio: {row['Ponto de Apoio']}" 
                                         if row['Ponto de Apoio'] not in [None, 'None', ''] and not pd.isna(row['Ponto de Apoio']) else row['Passeios | OUT'], axis=1)
 
-    df_tt = df_tt.drop(columns=['Ponto de Apoio', 'Embarque'])
+    df_tt = df_tt.drop(columns=['Ponto de Apoio', 'Embarque', 'Nome Original Servico'])
 
     return df_tt
 
@@ -554,7 +554,7 @@ def agrupar_roteiros_carros_nome_escala_in(df_in):
     df_in = pd.merge(df_in, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
 
     df_in_reg_group = df_in[df_in['Modo do Servico']=='REGULAR'].groupby(['Data Execucao', 'Modo do Servico', 'Roteiro', 'Carros', 'Servico', 'Região IN'])\
-        .agg({'Voo | Horario Voo': transformar_em_string, 'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'min', 'Cadeirante': cadeirante_agg}).reset_index()
+        .agg({'Voo | Horario Voo': transformar_em_string, 'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'min', 'Cadeirante': cadeirante_agg, 'Região Hotel': transformar_em_string}).reset_index()
 
     for index in range(len(df_in_reg_group)):
 
@@ -587,8 +587,8 @@ def agrupar_roteiros_carros_nome_escala_in(df_in):
 
     # Colocando aviso se o hotel for Camboinha ou Pitimbu
 
-    df_in_reg_group['Passeios | OUT'] = df_in_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' 
-                                                                else row['Passeios | OUT'], axis=1)
+    df_in_reg_group['IN'] = df_in_reg_group.apply(lambda row: f"{row['IN']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' 
+                                                                else row['IN'], axis=1)
 
     return df_in_reg_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD']]
 
@@ -609,8 +609,8 @@ def gerar_in_pvt(df_in):
 
     # Colocando aviso se o hotel for Camboinha ou Pitimbu
 
-    df_in_pvt_group['Passeios | OUT'] = df_in_pvt_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if not pd.isna(row['Região Hotel']) 
-                                                                else row['Passeios | OUT'], axis=1)
+    df_in_pvt_group['IN'] = df_in_pvt_group.apply(lambda row: f"{row['IN']}\nAtenção HOTEL {row['Região Hotel']}" if not pd.isna(row['Região Hotel']) 
+                                                                else row['IN'], axis=1)
     
     # Colocando aviso se o hotel for BA´RA
 
@@ -930,10 +930,10 @@ if gerar_layout:
 
     # Puxando histórico de roteiros
 
-    # with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
+    with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
 
-    #     puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
-    #                                     'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
+        puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
+                                        'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
 
     df_router_filtrado = criar_df_router_filtrado()
 
