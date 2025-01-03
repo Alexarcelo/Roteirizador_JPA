@@ -275,7 +275,7 @@ def criar_df_tt_reg_final(df_router_filtrado):
 
     # Colocando aviso se o hotel for Camboinha ou Pitimbu
 
-    df_tt_reg_group['Passeios | OUT'] = df_tt_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if not row['Região Hotel']!='' else row['Passeios | OUT'], axis=1)
+    df_tt_reg_group['Passeios | OUT'] = df_tt_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' else row['Passeios | OUT'], axis=1)
 
     # Selecionando colunas que vão ficar no dataframe final
 
