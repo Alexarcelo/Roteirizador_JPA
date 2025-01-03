@@ -9,6 +9,7 @@ from st_aggrid import AgGrid, GridOptionsBuilder
 import json
 from google.oauth2.service_account import Credentials
 import requests
+from google.cloud import secretmanager 
 
 def gerar_df_phoenix(vw_name, base_luck):
 
