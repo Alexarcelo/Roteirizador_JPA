@@ -106,6 +106,8 @@ def criar_df_router_filtrado():
 
     df_router_filtrado = df_router_filtrado.sort_values(by=['Servico', 'Horario Apresentacao']).reset_index(drop=True)
 
+    df_router_filtrado['Nome Original Servico'] = df_router_filtrado['Servico']
+
     return df_router_filtrado
 
 def puxar_historico_roteiros_apoios(id_gsheet, nome_df, aba, nome_df_2, aba_2, nome_df_3, aba_3, nome_df_4, aba_4, nome_df_5, aba_5):
@@ -199,7 +201,7 @@ def criar_df_tt_pvt_final(df_router_filtrado):
     mask_tt_pvt = (df_router_filtrado['Tipo de Servico'].isin(['TOUR', 'TRANSFER'])) & (df_router_filtrado['Modo do Servico']!='REGULAR') & \
         (df_router_filtrado['Data Execucao']==st.session_state.data_roteiro)
 
-    df_tt_pvt = df_router_filtrado[mask_tt_pvt][['Reserva', 'Servico', 'Total ADT | CHD', 'Horario Apresentacao', 'Cadeirante', 'Observacao', 'Est Origem']].reset_index(drop=True)
+    df_tt_pvt = df_router_filtrado[mask_tt_pvt][['Reserva', 'Servico', 'Nome Original Servico', 'Total ADT | CHD', 'Horario Apresentacao', 'Cadeirante', 'Observacao', 'Est Origem']].reset_index(drop=True)
 
     # Inserindo coluna de Região Hotel
 
@@ -233,7 +235,7 @@ def criar_df_tt_pvt_final(df_router_filtrado):
 
     # Selecionando colunas que vão ficar no dataframe final
 
-    df_tt_pvt_final = df_tt_pvt[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN']]\
+    df_tt_pvt_final = df_tt_pvt[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Nome Original Servico']]\
         .sort_values(by='Horario Apresentacao').reset_index(drop=True)
     
     # Colocando a palavra Privativo no nome dos passeios
@@ -261,7 +263,7 @@ def criar_df_tt_reg_final(df_router_filtrado):
 
     # Agrupando serviços
 
-    df_tt_reg_group = df_tt_reg.groupby(['Servico']).agg({'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'first', 'Cadeirante': cadeirante_agg, 'Região Hotel': transformar_em_string}).reset_index()
+    df_tt_reg_group = df_tt_reg.groupby(['Servico', 'Nome Original Servico']).agg({'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'first', 'Cadeirante': cadeirante_agg, 'Região Hotel': transformar_em_string}).reset_index()
 
     # Completando todas as colunas e renomeando as que precisam
 
@@ -279,7 +281,7 @@ def criar_df_tt_reg_final(df_router_filtrado):
 
     # Selecionando colunas que vão ficar no dataframe final
 
-    df_tt_reg_group_final = df_tt_reg_group[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN']]\
+    df_tt_reg_group_final = df_tt_reg_group[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Nome Original Servico']]\
         .sort_values(by='Horario Apresentacao').reset_index(drop=True)
     
     return df_tt_reg_group_final
@@ -378,8 +380,10 @@ def ajustar_nomes_ilha_extremo(df_tt):
 
 def criar_df_out(df_router_filtrado):
 
+    df_router_filtrado['Horario Voo'] = pd.to_datetime(df_router_filtrado['Horario Voo']).dt.time
+
     df_out_d1 = df_router_filtrado[(df_router_filtrado['Tipo de Servico']=='OUT') & (df_router_filtrado['Data Execucao']==data_roteiro) & 
-                                (df_router_filtrado['Horario Voo']>time(4,0)) & (df_router_filtrado['Horario Apresentacao']>time(4,0))].reset_index(drop=True)
+                                   (df_router_filtrado['Horario Voo']>time(4,0)) & (df_router_filtrado['Horario Apresentacao']>time(4,0))].reset_index(drop=True)
 
     df_out_d1 = df_out_d1.sort_values(by='Horario Apresentacao').reset_index(drop=True)
 
@@ -926,10 +930,10 @@ if gerar_layout:
 
     # Puxando histórico de roteiros
 
-    with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
+    # with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
 
-        puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
-                                        'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
+    #     puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
+    #                                     'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
 
     df_router_filtrado = criar_df_router_filtrado()
 
@@ -955,11 +959,11 @@ if gerar_layout:
 
     # Colocando Pontos de Apoio de cada passeio
 
-    df_tt = pd.merge(df_tt, st.session_state.df_pontos_de_apoio, on='Passeios | OUT', how='left')
+    df_tt = pd.merge(df_tt, st.session_state.df_pontos_de_apoio, on='Nome Original Servico', how='left')
 
     # Colocando horários de embarque se houver ILHA ou EXTREMO
 
-    df_tt = pd.merge(df_tt, st.session_state.df_embarques[st.session_state.df_embarques['Data Execucao']==data_roteiro][['Passeios | OUT', 'Embarque']], on='Passeios | OUT', how='left')
+    df_tt = pd.merge(df_tt, st.session_state.df_embarques[st.session_state.df_embarques['Data Execucao']==data_roteiro][['Nome Original Servico', 'Embarque']], on='Nome Original Servico', how='left')
 
     # Verificar se tem Ilha ou Extremo e se existe embarque cadastrado pra data escolhida
 
