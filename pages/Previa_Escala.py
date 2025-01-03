@@ -182,7 +182,8 @@ def verificar_servicos_in_out_sem_roteiros(df_router_filtrado):
 
     lista_id_servico_in_out = df_router_filtrado[(df_router_filtrado['Tipo de Servico'].isin(['IN', 'OUT'])) & 
                                                  (~df_router_filtrado['Servico'].isin(['FAZER CONTATO - SEM TRF IN '])) & 
-                                                 (~df_router_filtrado['Voo'].isin(['G3 - 0001']))]['Id_Servico'].unique().tolist()
+                                                 (~df_router_filtrado['Voo'].isin(['G3 - 0001'])) & 
+                                                 (~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False))]['Id_Servico'].unique().tolist()
 
     lista_id_servico_in_out_roteiros = st.session_state.df_historico_roteiros['Id_Servico'].unique().tolist()
 
