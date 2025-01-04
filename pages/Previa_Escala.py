@@ -384,7 +384,7 @@ def criar_df_out(df_router_filtrado):
     df_router_filtrado['Horario Voo'] = pd.to_datetime(df_router_filtrado['Horario Voo']).dt.time
 
     df_out_d1 = df_router_filtrado[(df_router_filtrado['Tipo de Servico']=='OUT') & (df_router_filtrado['Data Execucao']==data_roteiro) & 
-                                   ((df_router_filtrado['Horario Voo']>time(4,0)) | (df_router_filtrado['Horario Apresentacao']>time(4,0)))].reset_index(drop=True)
+                                   (df_router_filtrado['Horario Apresentacao']>time(4,0)) & (df_router_filtrado['Horario Voo']>time(4,0))].reset_index(drop=True)
 
     df_out_d1 = df_out_d1.sort_values(by='Horario Apresentacao').reset_index(drop=True)
 
