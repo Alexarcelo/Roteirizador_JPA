@@ -4312,13 +4312,12 @@ if tipo_de_transfer=='OUT':
                 st.warning(f'As reservas {nome_reservas} não foram roteirizadas e, portanto, não foi enviado informativos de saída para elas')
 
             dict_tag_servico = \
-                {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
-                'HOTÉIS PITIMBU / AEROPORTO RECIFE': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
-                'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
-                'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 
-                                                                'Campina Grande'], 
-                'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
-                'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú']}
+                {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': 'Campina Grande', 
+                'HOTÉIS PITIMBU / AEROPORTO RECIFE': 'Pitimbú', 
+                'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': 'João Pessoa', 
+                'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': 'Campina Grande', 
+                'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': 'João Pessoa', 
+                'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': 'Pitimbú'}
 
             if len(df_ref_thiago)>0:
 
