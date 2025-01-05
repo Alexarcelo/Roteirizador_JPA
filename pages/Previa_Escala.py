@@ -892,7 +892,7 @@ def plotar_tabela_trf_in():
 
 def plotar_tabela_trf_out_passeios():
 
-    row_height = 28
+    row_height = 32
     header_height = 56  
     num_rows = len(st.session_state.df_tt_out)
     height = header_height + (row_height * num_rows)  
