@@ -10,6 +10,7 @@ import json
 from google.oauth2.service_account import Credentials
 import requests
 from google.cloud import secretmanager 
+from google.oauth2 import service_account
 
 def gerar_df_phoenix(vw_name, base_luck):
 
@@ -125,6 +126,7 @@ def puxar_historico_roteiros_apoios(id_gsheet, nome_df, aba, nome_df_2, aba_2, n
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
+
 
     spreadsheet = client.open_by_key(id_gsheet)
     
@@ -890,12 +892,17 @@ def plotar_tabela_trf_in():
 
 def plotar_tabela_trf_out_passeios():
 
+    row_height = 28
+    header_height = 56  
+    num_rows = len(st.session_state.df_tt_out)
+    height = header_height + (row_height * num_rows)  
+
     gb = GridOptionsBuilder.from_dataframe(st.session_state.df_tt_out)
     gb.configure_selection('single')
     gb.configure_grid_options()
     gridOptions = gb.build()
 
-    grid_response_out = AgGrid(st.session_state.df_tt_out, gridOptions=gridOptions, enable_enterprise_modules=False, fit_columns_on_grid_load=True)
+    grid_response_out = AgGrid(st.session_state.df_tt_out, gridOptions=gridOptions, enable_enterprise_modules=False, fit_columns_on_grid_load=True, height=height)
 
     if not grid_response_out['selected_rows'] is None:
 
@@ -1081,6 +1088,8 @@ if gerar_layout:
     # Concatenando reg e pvt, ordenando e inserindo colunas que faltam pra concatenar com os passeios
 
     df_in_final = juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group)
+
+    df_in_final = df_in_final[~(df_in_final['IN'].str.contains('G3 - 0001') & ~df_in_final['IN'].str.contains('PRIVATIVO'))].reset_index(drop=True)
 
     st.session_state.df_tt_out = df_tt_out[['Horario Apresentacao', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN']]
 
