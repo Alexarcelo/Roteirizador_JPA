@@ -963,10 +963,10 @@ if gerar_layout:
 
     # Puxando histórico de roteiros
 
-    # with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
+    with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
 
-    #     puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
-    #                                     'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
+        puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
+                                        'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
 
     df_router_filtrado = criar_df_router_filtrado()
 
