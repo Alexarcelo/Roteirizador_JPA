@@ -907,94 +907,6 @@ def plotar_tabela_trf_out_passeios():
 
     return selected_rows_out
 
-def atualizar_banco_dados(df_exportacao, base_luck):
-
-    config = {
-    'user': 'user_automation',
-    'password': 'auto_luck_2024',
-    'host': 'comeia.cixat7j68g0n.us-east-1.rds.amazonaws.com',
-    'database': base_luck
-    }
-    # Conexão ao banco de dados
-    conexao = mysql.connector.connect(**config)
-    cursor = conexao.cursor()
-    
-    # Coluna para armazenar o status da atualização
-    df_exportacao['Status Serviço'] = ''
-    df_exportacao['Status Auditoria'] = ''
-    
-    # Placeholder para exibir o DataFrame e atualizar em tempo real
-    placeholder = st.empty()
-    for idx, row in df_exportacao.iterrows():
-        id_reserva = row['Id_Reserva']
-        id_servico = row['Id_Servico']
-        currentPresentationHour = str(row['Data Horario Apresentacao Original'])
-        newPresentationHour = str(row['Data Horario Apresentacao'])
-        
-        data = '{"presentation_hour":["' + currentPresentationHour + '","' + newPresentationHour + ' Roteirizador"]}'
-        
-        #Horário atual em string
-
-        hora_execucao = datetime.now()
-    
-        hora_execucao_menos_3h = hora_execucao - timedelta(hours=3)
-
-        current_timestamp = int(hora_execucao_menos_3h.timestamp())
-        
-        try:
-            # Atualizar o banco de dados se o ID já existir
-            query = "UPDATE reserve_service SET presentation_hour = %s WHERE id = %s"
-            cursor.execute(query, (newPresentationHour, id_servico))
-            conexao.commit()
-            df_exportacao.at[idx, 'Status Serviço'] = 'Atualizado com sucesso'
-            
-        except Exception as e:
-            df_exportacao.at[idx, 'Status Serviço'] = f'Erro: {e}'
-        
-        try:
-            # Adicionar registro de edição na tabela de auditoria
-            query = "INSERT INTO changelogs (relatedObjectType, relatedObjectId, parentId, data, createdAt, type, userId, module, hostname) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, null)"
-            cursor.execute(query, ('ReserveService', id_servico, id_reserva, data, current_timestamp, 'update', st.query_params["userId"], 'router'))
-            conexao.commit()
-            df_exportacao.at[idx, 'Status Auditoria'] = 'Atualizado com sucesso'
-        except Exception as e:
-            df_exportacao.at[idx, 'Status Auditoria'] = f'Erro: {e}'
-            
-        # Define o estilo para coloração condicional
-        styled_df = df_exportacao.style.applymap(
-            lambda val: 'background-color: green; color: white' if val == 'Atualizado com sucesso' 
-            else ('background-color: red; color: white' if val != '' else ''),
-            subset=['Status Serviço', 'Status Auditoria']
-        )
-        
-        # Atualiza o DataFrame na interface em tempo real
-        placeholder.dataframe(styled_df, hide_index=True, use_container_width=True)
-        # time.sleep(0.5)
-    
-    cursor.close()
-    conexao.close()
-
-    st.session_state.horarios_in_atualizado = True
-    
-    return df_exportacao
-
-def gerar_df_insercao_in():
-
-    df_insercao_in = st.session_state.df_router[(st.session_state.df_router['Tipo de Servico']=='IN') & 
-                                                ((st.session_state.df_router['Data Execucao']==date.today()+timedelta(days=1)) | 
-                                                (st.session_state.df_router['Data Execucao']==date.today()+timedelta(days=2)))]\
-                                                    [['Id_Servico', 'Id_Reserva', 'Data Voo', 'Horario Voo', 'Data Horario Apresentacao', 'Data Horario Apresentacao Original']].reset_index(drop=True)
-
-    df_insercao_in['Data Horario Voo'] = pd.to_datetime(df_insercao_in['Data Voo'].astype(str) + ' ' + df_insercao_in['Horario Voo'].astype(str))
-
-    df_insercao_in = df_insercao_in[df_insercao_in['Data Horario Voo']!=df_insercao_in['Data Horario Apresentacao']].reset_index(drop=True)
-
-    df_insercao_in['Data Horario Apresentacao'] = df_insercao_in['Data Horario Voo']
-
-    df_insercao_in = df_insercao_in[['Id_Servico', 'Id_Reserva', 'Data Horario Apresentacao', 'Data Horario Apresentacao Original']]
-    
-    return df_insercao_in
-
 def retirar_id_servico_duplicado(df_out):
 
     index_servicos_duplicados = df_out[df_out['Id_Servico'].duplicated()].reset_index()
@@ -1024,14 +936,6 @@ if not 'df_router' in st.session_state:
     with st.spinner('Puxando dados do Phoenix...'):
 
         puxar_dados_phoenix()
-
-if not 'horarios_in_atualizado' in st.session_state:
-
-    df_insercao = gerar_df_insercao_in()
-
-    with st.spinner(f"Ajustando horários de INs dos dias {format(date.today()+timedelta(days=1), '%d/%m/%Y')} e {format(date.today()+timedelta(days=2), '%d/%m/%Y')}..."):
-
-        atualizar_banco_dados(df_insercao, 'test_phoenix_joao_pessoa')
 
 row1=st.columns(3)
 
