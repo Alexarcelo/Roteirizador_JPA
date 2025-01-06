@@ -364,7 +364,7 @@ def identificando_quantidade_carros_trilhas(df_tt):
 
         for loop in range(n_loops):
 
-            df_tt.loc[len(df_tt)] = [horario, '', '', '', '', '', trilha, '', 9, '', None, None]
+            df_tt.loc[len(df_tt)] = [horario, '', '', '', '', '', trilha, '', 9, '', trilha, None, None]
 
             df_tt.loc[index_principal, 'Paxs Passeios | OUT'] -= 9
 
