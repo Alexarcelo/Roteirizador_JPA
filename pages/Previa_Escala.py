@@ -338,7 +338,7 @@ def inserir_deixar_quadrilha(df_tt):
 
     if (df_tt['Passeios | OUT']=='CATAMARÃ DO FORRÓ').any():
 
-        deixar_trilha = [time(23), '', '', '', '', '', 'DEIXAR QUADRILHA', '', 13, '', None, None]
+        deixar_trilha = [time(23), '', '', '', '', '', 'DEIXAR QUADRILHA', '', 13, '', 'DEIXAR QUADRILHA', None, None]
 
         df_tt.loc[len(df_tt)] = deixar_trilha
 
