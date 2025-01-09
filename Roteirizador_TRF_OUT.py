@@ -4331,8 +4331,6 @@ if tipo_de_transfer=='OUT':
                 payload = {"data": data_roteiro_str, 
                            "ids_servicos": lista_ids_servicos, 
                            "tag_servico": dict_tag_servico[servico_roteiro]}
-            
-                st.error('Essa função ainda não foi implantada na sua base.')
 
                 response = requests.post(webhook_thiago, json=payload)
                 
