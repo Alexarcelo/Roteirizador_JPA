@@ -1250,24 +1250,22 @@ st.divider()
 
 if escalar_trf_privativos:
 
-    st.warning('Essa função ainda precisa ser testada junto com Marcelo')
+    with st.spinner('Puxando Prévia do Google Drive...'):
 
-    # with st.spinner('Puxando Prévia do Google Drive...'):
+        puxar_previa_de_escala(st.session_state.id_gsheet, 'df_previa', 'Prévia Escala')
 
-    #     puxar_previa_de_escala(st.session_state.id_gsheet, 'df_previa', 'Prévia Escala')
+    with st.spinner('Puxando roteiros de IN e OUT...'):
 
-    # with st.spinner('Puxando roteiros de IN e OUT...'):
+        puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
+                                        'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
 
-    #     puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
-    #                                     'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
+    lista_payload = gerar_payload_criacao_escalas(data_roteiro)
 
-    # lista_payload = gerar_payload_criacao_escalas(data_roteiro)
+    with st.spinner('Criando escalas no Phoenix...'):
 
-    # with st.spinner('Criando escalas no Phoenix...'):
+        for escala in lista_payload:
 
-    #     for escala in lista_payload:
-
-    #         status = update_scale(escala)
+            status = update_scale(escala)
 
 if gerar_layout:
 
