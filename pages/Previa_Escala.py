@@ -15,36 +15,21 @@ from google.oauth2 import service_account
 def gerar_df_phoenix(vw_name, base_luck):
 
     data_hoje = datetime.now()
-
     data_hoje_str = data_hoje.strftime("%Y-%m-%d")
-
-    # Parametros de Login AWS
     config = {
     'user': 'user_automation_jpa',
     'password': 'luck_jpa_2024',
     'host': 'comeia.cixat7j68g0n.us-east-1.rds.amazonaws.com',
     'database': base_luck
     }
-    # Conexão as Views
     conexao = mysql.connector.connect(**config)
     cursor = conexao.cursor()
-
     request_name = f'SELECT * FROM {vw_name} WHERE {vw_name}.`Data Execucao`>={data_hoje_str}'
-
-    # Script MySql para requests
-    cursor.execute(
-        request_name
-    )
-    # Coloca o request em uma variavel
+    cursor.execute(request_name)
     resultado = cursor.fetchall()
-    # Busca apenas o cabecalhos do Banco
     cabecalho = [desc[0] for desc in cursor.description]
-
-    # Fecha a conexão
     cursor.close()
     conexao.close()
-
-    # Coloca em um dataframe e muda o tipo de decimal para float
     df = pd.DataFrame(resultado, columns=cabecalho)
     df = df.applymap(lambda x: float(x) if isinstance(x, decimal.Decimal) else x)
     return df
@@ -126,7 +111,6 @@ def puxar_historico_roteiros_apoios(id_gsheet, nome_df, aba, nome_df_2, aba_2, n
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
-
 
     spreadsheet = client.open_by_key(id_gsheet)
     
@@ -476,7 +460,7 @@ def agrupar_roteiros_carros_nome_escala_out(df_out):
     df_out_reg_group['Passeios | OUT'] = df_out_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' 
                                                                 else row['Passeios | OUT'], axis=1)
 
-    return df_out_reg_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD']]
+    return df_out_reg_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros']]
 
 def gerar_out_pvt(df_out):
 
@@ -502,7 +486,7 @@ def gerar_out_pvt(df_out):
 
     df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs VIPs BARA" if row['Est Origem']=='BA´RA HOTEL' else row['Passeios | OUT'], axis=1)
     
-    return df_out_pvt_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD']]
+    return df_out_pvt_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros']]
 
 def juntar_reg_pvt_out(df_out_reg_group, df_out_pvt_group):
 
@@ -613,7 +597,7 @@ def agrupar_roteiros_carros_nome_escala_in(df_in):
     df_in_reg_group['IN'] = df_in_reg_group.apply(lambda row: f"{row['IN']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' 
                                                                 else row['IN'], axis=1)
 
-    return df_in_reg_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD']]
+    return df_in_reg_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros']]
 
 def gerar_in_pvt(df_in):
 
@@ -639,7 +623,7 @@ def gerar_in_pvt(df_in):
 
     df_in_pvt_group['IN'] = df_in_pvt_group.apply(lambda row: f"{row['IN']}\nAtenção Paxs VIPs BARA" if row['Est Origem']=='BA´RA HOTEL' else row['IN'], axis=1)
     
-    return df_in_pvt_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD']]
+    return df_in_pvt_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros']]
 
 def juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group):
 
@@ -685,7 +669,7 @@ def inserir_dados_gdrive(df_previa, aba_excel, id_gsheet):
 
 def montar_linha_insercao(selected_rows_in_linha_total):
 
-    linha_insercao = selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN']]
+    linha_insercao = selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]
 
     linha_insercao[['Passeios | OUT', 'Paxs Passeios | OUT']] = ['', 0]
 
@@ -693,11 +677,17 @@ def montar_linha_insercao(selected_rows_in_linha_total):
 
     return linha_insercao
 
-def incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total):
+def incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros):
 
     # Preenche as colunas IN e Paxs IN
 
     st.session_state.df_tt_out.loc[selected_rows_out, ['IN', 'Paxs IN']] = selected_rows_in
+
+    # Preenche as colunas Roteiro e Carros
+
+    st.session_state.df_tt_out.loc[selected_rows_out, 'Roteiro'] = str(int(st.session_state.df_tt_out.loc[selected_rows_out, 'Roteiro'])) + ' | ' + str(selected_rows_in_roteiro_carros[0])
+
+    st.session_state.df_tt_out.loc[selected_rows_out, 'Carros'] = str(int(st.session_state.df_tt_out.loc[selected_rows_out, 'Carros'])) + ' | ' + str(selected_rows_in_roteiro_carros[1])
 
     # Retira linha de st.session_state.df_in
 
@@ -705,7 +695,7 @@ def incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_
 
     # Insere linha nos registros de trf in, pra poder voltar pra lista de trf in depois
 
-    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN']]], ignore_index=True)
+    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]], ignore_index=True)
 
     st.rerun()
 
@@ -745,9 +735,13 @@ def retirar_trf_in_previa(selected_rows_out):
 
             st.session_state.df_tt_out.at[selected_rows_out, 'Paxs IN'] = ''
 
+            st.session_state.df_tt_out.at[selected_rows_out, 'Roteiro'] = st.session_state.df_tt_out.at[selected_rows_out, 'Roteiro'].split(' | ')[0]
+
+            st.session_state.df_tt_out.at[selected_rows_out, 'Carros'] = st.session_state.df_tt_out.at[selected_rows_out, 'Carros'].split(' | ')[0]
+
         else:
 
-            # Exclui e alinha da tabela de passeios e outs
+            # Exclui a linha da tabela de passeios e outs
 
             st.session_state.df_tt_out = st.session_state.df_tt_out.drop(index=selected_rows_out).reset_index(drop=True)
 
@@ -845,7 +839,7 @@ def incluir_trf_nao_conjugado(selected_rows_in_linha_total):
 
     # Insere linha nos registros de trf in, pra poder voltar pra lista de trf in depois
 
-    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN']]], ignore_index=True)
+    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]], ignore_index=True)
 
     st.rerun() 
 
@@ -861,9 +855,13 @@ def criar_df_gdrive():
 
     df_gdrive['Horario Apresentacao'] = df_gdrive['Horario Apresentacao'].apply(lambda x: x.strftime('%H:%M') if pd.notnull(x) else None)
 
-    df_gdrive[['Veiculo', 'Cao.', 'Reb.', 'Rt.', 'Motorista', 'Guia']] = ''
+    df_gdrive['Roteiro'] = df_gdrive['Roteiro'].astype(str)
 
-    df_gdrive = df_gdrive[['Horario Apresentacao', 'Veiculo', 'Cao.', 'Reb.', 'Rt.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN']]
+    df_gdrive['Carros'] = df_gdrive['Carros'].astype(str)
+
+    df_gdrive[['Veiculo', 'Cap.', 'Reb.', 'Rt.', 'Motorista', 'Guia']] = ''
+
+    df_gdrive = df_gdrive[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Rt.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Roteiro', 'Carros']]
 
     return df_gdrive
 
@@ -880,6 +878,8 @@ def plotar_tabela_trf_in():
 
         selected_rows_in = [grid_response_in['selected_rows'].reset_index()['IN'].iloc[0], grid_response_in['selected_rows'].reset_index()['Paxs IN'].iloc[0]]
 
+        selected_rows_in_roteiro_carros = [grid_response_in['selected_rows'].reset_index()['Roteiro'].iloc[0], grid_response_in['selected_rows'].reset_index()['Carros'].iloc[0]]
+
         selected_rows_in_linha_total = grid_response_in['selected_rows'].reset_index()
 
     else:
@@ -888,7 +888,9 @@ def plotar_tabela_trf_in():
 
         selected_rows_in_linha_total = None
 
-    return selected_rows_in, selected_rows_in_linha_total
+        selected_rows_in_roteiro_carros = None
+
+    return selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros
 
 def plotar_tabela_trf_out_passeios():
 
@@ -924,11 +926,289 @@ def retirar_id_servico_duplicado(df_out):
 
     return df_out
 
+def puxar_previa_de_escala(id_gsheet, nome_df, aba):
+
+    project_id = "grupoluck"
+    secret_id = "cred-luck-aracaju"
+    secret_client = secretmanager.SecretManagerServiceClient()
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = secret_client.access_secret_version(request={"name": secret_name})
+    secret_payload = response.payload.data.decode("UTF-8")
+    credentials_info = json.loads(secret_payload)
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    client = gspread.authorize(credentials)
+
+    spreadsheet = client.open_by_key(id_gsheet)
+    
+    sheet = spreadsheet.worksheet(aba)
+
+    sheet_data = sheet.get_all_values()
+
+    st.session_state[nome_df] = pd.DataFrame(sheet_data[1:], columns=sheet_data[0])
+
+def fetch_data(search_query, object):
+    params = {"page": 1, "fields": "", "q": search_query}
+    try:
+        if not search_query:
+            params.pop("q")
+        response = requests.get(st.session_state.base_url_get + object, params=params, verify=False)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        st.error(f"Ocorreu um erro: {e}")
+        return []
+    
+def handle_selection(search_query, object_name):
+    api_data = fetch_data(search_query, object_name)
+    return api_data[0]['id']
+
+def identificar_regiao_trf(servico_out):
+
+    if 'JPA' in servico_out:
+
+        return 'AEROPORTO JOÃO PESSOA'
+
+    elif 'REC' in servico_out:
+
+        return 'AEROPORTO RECIFE'
+
+    elif 'NAT' in servico_out:
+
+        return 'AEROPORTO NATAL'
+
+    elif 'CPV' in servico_out:
+
+        return 'AEROPORTO CAMPINA GRANDE'
+
+def gerar_payload_criacao_escalas(data_roteiro):
+
+    df_trf_out_in = st.session_state.df_previa[(st.session_state.df_previa['IN']!='') | (st.session_state.df_previa['Passeios | OUT'].str[:7]=='TRF OUT') | 
+                                               (st.session_state.df_previa['Passeios | OUT'].str[:19]=='PRIVATIVO | TRF OUT')].reset_index(drop=True)
+
+    lista_payload = []
+
+    date_str = data_roteiro.strftime('%Y-%m-%d')
+
+    for index in range(len(df_trf_out_in)):
+
+        veiculo = df_trf_out_in.at[index, 'Veículo']
+
+        motorista = df_trf_out_in.at[index, 'Motorista']
+
+        if veiculo!='' and motorista!='':
+
+            guia = df_trf_out_in.at[index, 'Guia']
+
+            servico_out = df_trf_out_in.at[index, 'Passeios | OUT']
+
+            servico_out_busca = identificar_regiao_trf(servico_out)
+
+            servico_in = df_trf_out_in.at[index, 'IN']
+
+            servico_in_busca = identificar_regiao_trf(servico_in)
+
+            horario = df_trf_out_in.at[index, 'Horário']
+
+            if guia!='':
+
+                id_guia = handle_selection(guia, 'guide')
+
+            id_motorista = handle_selection(motorista, 'driver')
+
+            id_veiculo = handle_selection(veiculo, 'vehicle')
+
+            if servico_out!='' and servico_in!='':
+
+                roteiro_out = int(df_trf_out_in.at[index, 'Roteiro'].split(' | ')[0])
+
+                roteiro_in = int(df_trf_out_in.at[index, 'Roteiro'].split(' | ')[1])
+
+                carro_out = int(df_trf_out_in.at[index, 'Carros'].split(' | ')[0])
+
+                carro_in = int(df_trf_out_in.at[index, 'Carros'].split(' | ')[1])
+
+                if datetime.strptime(horario, '%H:%M:%S').time()<=time(4,0):
+
+                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
+                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
+                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
+                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
+                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
+                    
+                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
+                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
+                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
+                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
+                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in))]['Id_Servico'].tolist()
+                    
+                else:
+
+                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
+                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
+                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
+                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
+                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
+                    
+                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
+                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
+                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
+                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
+                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in_busca))]['Id_Servico'].tolist()
+                    
+                if guia!='':
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "guide_id": id_guia,
+                        "reserve_service_ids": ids_out,
+                    }
+
+                    lista_payload.append(payload)
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "guide_id": id_guia,
+                        "reserve_service_ids": ids_in,
+                    }
+
+                    lista_payload.append(payload)
+
+                else:
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "reserve_service_ids": ids_out,
+                    }
+
+                    lista_payload.append(payload)
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "reserve_service_ids": ids_in,
+                    }
+
+                    lista_payload.append(payload)
+
+            elif servico_out=='' and servico_in!='':
+
+                roteiro_in = int(df_trf_out_in.at[index, 'Roteiro'])
+
+                carro_in = int(df_trf_out_in.at[index, 'Carros'])
+
+                if datetime.strptime(horario, '%H:%M:%S').time()<=time(4,0):
+
+                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
+                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
+                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
+                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
+                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in_busca))]['Id_Servico'].tolist()
+                    
+                else:
+
+                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
+                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
+                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
+                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
+                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in_busca))]['Id_Servico'].tolist()
+                    
+                if guia!='':
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "guide_id": id_guia,
+                        "reserve_service_ids": ids_in,
+                    }
+
+                    lista_payload.append(payload)
+
+                else:
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "reserve_service_ids": ids_in,
+                    }
+
+                    lista_payload.append(payload)
+
+            elif servico_out!='' and servico_in=='':
+
+                roteiro_out = int(df_trf_out_in.at[index, 'Roteiro'])
+
+                carro_out = int(df_trf_out_in.at[index, 'Carros'])
+
+                if datetime.strptime(horario, '%H:%M:%S').time()<=time(4,0):
+
+                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
+                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
+                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
+                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
+                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
+                    
+                else:
+
+                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
+                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
+                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
+                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
+                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
+                    
+                if guia!='':
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "guide_id": id_guia,
+                        "reserve_service_ids": ids_out,
+                    }
+
+                    lista_payload.append(payload)
+
+                else:
+
+                    payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "reserve_service_ids": ids_out,
+                    }
+
+                    lista_payload.append(payload)
+
+    return lista_payload
+
+def update_scale(payload):
+
+    try:
+        response = requests.post(st.session_state.base_url_post, json=payload, verify=False)
+        response.raise_for_status()
+        return 'Escala atualizada com sucesso!'
+    except requests.RequestException as e:
+        st.error(f"Ocorreu um erro: {e}")
+        return 'Erro ao atualizar a escala'
+    
 st.set_page_config(layout='wide')
 
 st.session_state.titulo = 'Prévia de Escala - João Pessoa'
 
 st.session_state.id_gsheet = '1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY'
+
+st.session_state.base_url_get = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/'
+
+st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
 
 st.title(st.session_state.titulo)
 
@@ -936,7 +1216,7 @@ st.divider()
 
 if not 'df_in_controle' in st.session_state:
 
-    st.session_state.df_in_controle = pd.DataFrame(columns=['Horario Apresentacao', 'IN', 'Paxs IN'])
+    st.session_state.df_in_controle = pd.DataFrame(columns=['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros'])
 
 if not 'df_router' in st.session_state:
 
@@ -962,9 +1242,32 @@ with row1[0]:
 
     gerar_layout = container_roteirizar.button('Gerar Layout')
 
+with row1[1]:
+
+    escalar_trf_privativos = st.button('Escalar TRF IN e OUT')
+
 st.divider()
 
-# st.session_state.df_historico_roteiros[st.session_state.df_historico_roteiros['Voo']=='LA - 3636']
+if escalar_trf_privativos:
+
+    st.warning('Essa função ainda precisa ser testada junto com Marcelo')
+
+    # with st.spinner('Puxando Prévia do Google Drive...'):
+
+    #     puxar_previa_de_escala(st.session_state.id_gsheet, 'df_previa', 'Prévia Escala')
+
+    # with st.spinner('Puxando roteiros de IN e OUT...'):
+
+    #     puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
+    #                                     'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
+
+    # lista_payload = gerar_payload_criacao_escalas(data_roteiro)
+
+    # with st.spinner('Criando escalas no Phoenix...'):
+
+    #     for escala in lista_payload:
+
+    #         status = update_scale(escala)
 
 if gerar_layout:
 
@@ -1089,17 +1392,19 @@ if gerar_layout:
 
     df_in_final = juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group)
 
+    # Retirando voo G3 - 0001 REGULAR da prévia
+
     df_in_final = df_in_final[~(df_in_final['IN'].str.contains('G3 - 0001') & ~df_in_final['IN'].str.contains('PRIVATIVO'))].reset_index(drop=True)
 
-    st.session_state.df_tt_out = df_tt_out[['Horario Apresentacao', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN']]
+    st.session_state.df_tt_out = df_tt_out[['Horario Apresentacao', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Roteiro', 'Carros']]
 
-    st.session_state.df_in = df_in_final[['Horario Apresentacao', 'IN', 'Paxs IN']]
+    st.session_state.df_in = df_in_final[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]
 
 if 'df_tt_out' in st.session_state:
 
     # Plotar tabela com TRF IN
 
-    selected_rows_in, selected_rows_in_linha_total = plotar_tabela_trf_in()
+    selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros = plotar_tabela_trf_in()
 
     # Plotar tabela com Passeios e OUTs
 
@@ -1119,7 +1424,7 @@ if 'df_tt_out' in st.session_state:
 
     if incluir_trf_in and not selected_rows_out is None and not selected_rows_in is None:
 
-        incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total)
+        incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros)
 
     # Se for tirar um TRF IN da prévia
 
