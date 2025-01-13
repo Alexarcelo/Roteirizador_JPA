@@ -3182,39 +3182,78 @@ def gerar_roteiros_alternativos_4(df_servicos, pax_max_utilitario, pax_max_van, 
 
             n_carro_ref+=1
 
-            closest_sum = None
-            closest_indices = []
+            df_agrupado_qtd_paxs = df_ref_group_hotel.groupby('Total ADT | CHD')['Est Origem'].count().reset_index()
 
-            if len(df_ref_group_hotel)>=max_hoteis:
+            df_agrupado_qtd_paxs['Paxs Grupo Hotel'] = df_agrupado_qtd_paxs['Total ADT | CHD'] * df_agrupado_qtd_paxs['Est Origem']
+
+            if len(df_agrupado_qtd_paxs)>=max_hoteis:
 
                 lim_combinacoes = max_hoteis
 
             else:
 
-                lim_combinacoes = len(df_ref_group_hotel)
+                lim_combinacoes = len(df_agrupado_qtd_paxs)
 
-            for r in range(1, lim_combinacoes + 1):
+            closest_sum = None
+            closest_indices = []
 
-                for comb in combinations(df_ref_group_hotel.index, r):
+            for r in range(1, lim_combinacoes+1):
 
-                    current_sum = df_ref_group_hotel.loc[list(comb), 'Total ADT | CHD'].sum()
+                for comb in combinations(df_agrupado_qtd_paxs.index, r):
+
+                    current_sum = df_agrupado_qtd_paxs.loc[list(comb), 'Paxs Grupo Hotel'].sum()
+
+                    n_hoteis = df_agrupado_qtd_paxs.loc[list(comb), 'Est Origem'].sum()
                     
                     # Se for igual ao target, já encontramos a combinação perfeita
-                    if current_sum == target:
+                    if current_sum == target and n_hoteis<=lim_combinacoes:
                         closest_sum = current_sum
                         closest_indices = list(comb)
+                        encontrou_solucao = 1
                         break
-                    
-                    # Se estiver mais próximo do que a combinação anterior, atualizamos
-                    if closest_sum is None or abs(target - current_sum) < abs(target - closest_sum):
-                        closest_sum = current_sum
-                        closest_indices = list(comb)
-                
-                # Parar o loop se a combinação exata foi encontrada
-                if closest_sum == target:
-                    break
 
-            result_df = df_ref_group_hotel.loc[closest_indices]
+                    else:
+
+                        encontrou_solucao = 0
+
+            if encontrou_solucao==1:
+            
+                ref_result_df = df_agrupado_qtd_paxs.loc[closest_indices]
+            
+                result_df = df_ref_group_hotel[df_ref_group_hotel['Total ADT | CHD'].isin(ref_result_df['Total ADT | CHD'].unique())]
+
+            else:
+
+                if len(df_ref_group_hotel)>=max_hoteis:
+
+                    lim_combinacoes = max_hoteis
+
+                else:
+
+                    lim_combinacoes = len(df_ref_group_hotel)
+
+                for r in range(lim_combinacoes, 0, -1):
+
+                    for comb in combinations(df_ref_group_hotel.index, r):
+
+                        current_sum = df_ref_group_hotel.loc[list(comb), 'Total ADT | CHD'].sum()
+                        
+                        # Se for igual ao target, já encontramos a combinação perfeita
+                        if current_sum == target:
+                            closest_sum = current_sum
+                            closest_indices = list(comb)
+                            break
+                        
+                        # Se estiver mais próximo do que a combinação anterior, atualizamos
+                        if closest_sum is None or abs(target - current_sum) < abs(target - closest_sum):
+                            closest_sum = current_sum
+                            closest_indices = list(comb)
+                    
+                    # Parar o loop se a combinação exata foi encontrada
+                    if closest_sum == target:
+                        break
+
+                result_df = df_ref_group_hotel.loc[closest_indices]
 
             lista_hoteis_melhor_comb = result_df['Est Origem'].tolist()
 
