@@ -3013,6 +3013,8 @@ def puxar_dados_phoenix():
 
     st.session_state.df_router = gerar_df_phoenix('vw_router', 'test_phoenix_joao_pessoa')
 
+    st.session_state.vw_atual = 'vw_roteirizador'
+
     verificar_voos_undefined()
 
     st.session_state.df_router = st.session_state.df_router[(st.session_state.df_router['Status da Reserva']!='CANCELADO')].reset_index(drop=True)
@@ -3512,6 +3514,10 @@ def inserir_html_3(nome_html, df):
         
 st.set_page_config(layout='wide')
 
+if not 'vw_atual' in st.session_state:
+
+    st.session_state.vw_atual = 'vw_roteirizador'
+
 # Validando usuários antes de mostrar qualquer coisa na tela
 
 with st.spinner('Validando Usuário...'):
@@ -3530,7 +3536,7 @@ with st.spinner('Validando Usuário...'):
 
 with st.spinner('Puxando dados do Phoenix...'):
 
-    if not 'df_router' in st.session_state:
+    if not 'df_router' in st.session_state or st.session_state.vw_atual != 'vw_roteirizador':
 
         puxar_dados_phoenix()
 
