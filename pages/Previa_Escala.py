@@ -38,6 +38,8 @@ def puxar_dados_phoenix():
 
     st.session_state.df_router = gerar_df_phoenix('vw_router', 'test_phoenix_joao_pessoa')
 
+    st.session_state.vw_atual = 'vw_previa'
+
     st.session_state.df_router = st.session_state.df_router[~(st.session_state.df_router['Status da Reserva'].isin(['CANCELADO', 'PENDENCIA DE IMPORTAÇÃO'])) & 
                                                             ~(st.session_state.df_router['Status do Servico'].isin(['CANCELADO'])) &
                                                             ~(pd.isna(st.session_state.df_router['Status da Reserva'])) & 
@@ -1202,6 +1204,10 @@ def update_scale(payload):
     
 st.set_page_config(layout='wide')
 
+if not 'vw_atual' in st.session_state:
+
+    st.session_state.vw_atual = 'vw_previa'
+
 st.session_state.titulo = 'Prévia de Escala - João Pessoa'
 
 st.session_state.id_gsheet = '1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY'
@@ -1218,7 +1224,7 @@ if not 'df_in_controle' in st.session_state:
 
     st.session_state.df_in_controle = pd.DataFrame(columns=['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros'])
 
-if not 'df_router' in st.session_state:
+if not 'df_router' in st.session_state or st.session_state.vw_atual != 'vw_previa':
 
     with st.spinner('Puxando dados do Phoenix...'):
 
