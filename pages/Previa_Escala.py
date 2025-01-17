@@ -103,15 +103,10 @@ def criar_df_router_filtrado():
 
 def puxar_historico_roteiros_apoios(id_gsheet, nome_df, aba, nome_df_2, aba_2, nome_df_3, aba_3, nome_df_4, aba_4, nome_df_5, aba_5):
 
-    project_id = "grupoluck"
-    secret_id = "cred-luck-aracaju"
-    secret_client = secretmanager.SecretManagerServiceClient()
-    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-    response = secret_client.access_secret_version(request={"name": secret_name})
-    secret_payload = response.payload.data.decode("UTF-8")
-    credentials_info = json.loads(secret_payload)
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
+    credentials = service_account.Credentials.from_service_account_info(nome_credencial)
+    scope = ['https://www.googleapis.com/auth/spreadsheets']
+    credentials = credentials.with_scopes(scope)
     client = gspread.authorize(credentials)
 
     spreadsheet = client.open_by_key(id_gsheet)
@@ -645,15 +640,10 @@ def juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group):
 
 def inserir_dados_gdrive(df_previa, aba_excel, id_gsheet):
 
-    project_id = "grupoluck"
-    secret_id = "cred-luck-aracaju"
-    secret_client = secretmanager.SecretManagerServiceClient()
-    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-    response = secret_client.access_secret_version(request={"name": secret_name})
-    secret_payload = response.payload.data.decode("UTF-8")
-    credentials_info = json.loads(secret_payload)
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
+    credentials = service_account.Credentials.from_service_account_info(nome_credencial)
+    scope = ['https://www.googleapis.com/auth/spreadsheets']
+    credentials = credentials.with_scopes(scope)
     client = gspread.authorize(credentials)
     
     spreadsheet = client.open_by_key(id_gsheet)
@@ -930,15 +920,10 @@ def retirar_id_servico_duplicado(df_out):
 
 def puxar_previa_de_escala(id_gsheet, nome_df, aba):
 
-    project_id = "grupoluck"
-    secret_id = "cred-luck-aracaju"
-    secret_client = secretmanager.SecretManagerServiceClient()
-    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-    response = secret_client.access_secret_version(request={"name": secret_name})
-    secret_payload = response.payload.data.decode("UTF-8")
-    credentials_info = json.loads(secret_payload)
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
+    credentials = service_account.Credentials.from_service_account_info(nome_credencial)
+    scope = ['https://www.googleapis.com/auth/spreadsheets']
+    credentials = credentials.with_scopes(scope)
     client = gspread.authorize(credentials)
 
     spreadsheet = client.open_by_key(id_gsheet)
