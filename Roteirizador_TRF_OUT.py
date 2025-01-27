@@ -3874,7 +3874,8 @@ if tipo_de_transfer:
 
     if roteirizar:
 
-        puxar_sequencias_hoteis('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Hoteis Joao Pessoa', 'Hoteis Pitimbu', 'Hoteis Campina Grande', 'Hoteis Porto de Galinhas'], ['df_joao_pessoa', 'df_pitimbu', 'df_campina_grande', 'df_porto'])
+        puxar_sequencias_hoteis('1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY', ['Hoteis Joao Pessoa', 'Hoteis Pitimbu', 'Hoteis Campina Grande', 'Hoteis Porto de Galinhas', 'Hoteis Pipa'], 
+                                ['df_joao_pessoa', 'df_pitimbu', 'df_campina_grande', 'df_porto', 'df_pipa'])
 
         st.session_state.dict_regioes_hoteis = \
             {'HOTEL CAMPINA GRANDE / AEROPORTO CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
@@ -3890,7 +3891,8 @@ if tipo_de_transfer:
             'AEROPORTO RECIFE / HOTÉIS JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
             'AEROPORTO RECIFE / HOTÉIS PITIMBU': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'],
             'AEROPORTO CAMPINA GRANDE / HOTEL CAMPINA GRANDE' : ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
-            'AEROPORTO JOÃO PESSOA/ HOTEL PORTO DE GALINHAS': ['df_porto', 'Porto de Galinhas', 'Hoteis Porto de Galinhas', 'Porto de Galinhas']}
+            'AEROPORTO JOÃO PESSOA/ HOTEL PORTO DE GALINHAS': ['df_porto', 'Porto de Galinhas', 'Hoteis Porto de Galinhas', 'Porto de Galinhas'],
+            'AEROPORTO JOÃO PESSOA / HOTÉIS PIPA': ['df_pipa', 'Pipa', 'Hoteis Pipa', 'Pipa']}
 
         nome_df_hotel = st.session_state.dict_regioes_hoteis[servico_roteiro][0]
 
