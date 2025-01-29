@@ -3890,7 +3890,7 @@ if tipo_de_transfer:
             'AEROPORTO JOÃO PESSOA / HOTÉIS CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'],
             'AEROPORTO RECIFE / HOTÉIS JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
             'AEROPORTO RECIFE / HOTÉIS PITIMBU': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'],
-            'AEROPORTO CAMPINA GRANDE / HOTEL CAMPINA GRANDE' : ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
+            'AEROPORTO CAMPINA GRANDE / HOTEL CAMPINA GRANDE ' : ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'], 
             'AEROPORTO JOÃO PESSOA/ HOTEL PORTO DE GALINHAS': ['df_porto', 'Porto de Galinhas', 'Hoteis Porto de Galinhas', 'Porto de Galinhas'],
             'AEROPORTO JOÃO PESSOA / HOTÉIS PIPA': ['df_pipa', 'Pipa', 'Hoteis Pipa', 'Pipa']}
 
