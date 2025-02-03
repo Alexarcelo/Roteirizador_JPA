@@ -647,7 +647,7 @@ def gerar_in_pvt(df_in):
 
         df_in_pvt_group['IN'] = df_in_pvt_group.apply(ajustar_nomenclatura_cadeirante_bara_regiao_hotel_in, axis=1)
         
-        return df_in_pvt_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros']]
+        return df_in_pvt_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Id_Servico']]
     
     else:
 
