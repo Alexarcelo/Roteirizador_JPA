@@ -4,9 +4,7 @@ import decimal
 import pandas as pd
 import gspread 
 from datetime import datetime, timedelta, time
-from collections import Counter
 from st_aggrid import AgGrid, GridOptionsBuilder
-import json
 from google.oauth2.service_account import Credentials
 import requests
 from google.cloud import secretmanager 
@@ -24,7 +22,10 @@ def gerar_df_phoenix(vw_name, base_luck):
     }
     conexao = mysql.connector.connect(**config)
     cursor = conexao.cursor()
-    request_name = f'SELECT * FROM {vw_name} WHERE {vw_name}.`Data Execucao`>={data_hoje_str}'
+    if vw_name=='vw_router':
+        request_name = f'SELECT * FROM {vw_name} WHERE {vw_name}.`Data Execucao`>={data_hoje_str}'
+    else:
+        request_name = f'SELECT * FROM {vw_name}'
     cursor.execute(request_name)
     resultado = cursor.fetchall()
     cabecalho = [desc[0] for desc in cursor.description]
@@ -47,26 +48,17 @@ def puxar_dados_phoenix():
     
     st.session_state.df_router['Data Horario Apresentacao Original'] = st.session_state.df_router['Data Horario Apresentacao']
 
-def verificar_cadeirante(observacao):
+    st.session_state.df_motoristas = gerar_df_phoenix('vw_motoristas', 'test_phoenix_joao_pessoa')
 
-    palavra = "CADEIRANTE"
-    observacao_upper = str(observacao).upper()
+    st.session_state.df_motoristas = st.session_state.df_motoristas.rename(columns={'nickname': 'Motorista', 'id': 'id_motorista'})
 
-    contador_cadeirante = Counter(palavra)
+    st.session_state.df_guias = gerar_df_phoenix('vw_guias', 'test_phoenix_joao_pessoa')
 
-    palavras_observacao = observacao_upper.split()
+    st.session_state.df_guias = st.session_state.df_guias.rename(columns={'nickname': 'Guia', 'id': 'id_guia'})
 
-    for palavra_observacao in palavras_observacao:
-        contador_palavra = Counter(palavra_observacao)
+    st.session_state.df_veiculos = gerar_df_phoenix('vw_veiculos', 'test_phoenix_joao_pessoa')
 
-        for letra, quantidade in contador_cadeirante.items():
-            if contador_palavra[letra] < quantidade:
-                break
-        else:
-            
-            return True
-
-    return False
+    st.session_state.df_veiculos = st.session_state.df_veiculos.rename(columns={'name': 'Veículo', 'id': 'id_veiculo'})
 
 def criar_df_router_filtrado():
 
@@ -83,7 +75,7 @@ def criar_df_router_filtrado():
 
     # Verificando Cadeirantes
 
-    df_router_filtrado['Cadeirante'] = df_router_filtrado.apply(lambda row: 'X' if verificar_cadeirante(row['Observacao']) else '', axis=1)
+    df_router_filtrado['Cadeirante'] = df_router_filtrado.apply(lambda row: 'X' if 'CADEIRANTE' in row['Observacao'] else '', axis=1)
         
     # Criando coluna com Total ADT | CHD
 
@@ -175,11 +167,38 @@ def verificar_servicos_in_out_sem_roteiros(df_router_filtrado):
 
     id_servico_nao_roteirizados = list(set(lista_id_servico_in_out) - set(lista_id_servico_in_out_roteiros))
 
-    nomes_reservas = ', '.join(df_router_filtrado[df_router_filtrado['Id_Servico'].isin(id_servico_nao_roteirizados)]['Reserva'].unique().tolist())
-
     if len(id_servico_nao_roteirizados)>0:
 
-        st.error(f'As reservas {nomes_reservas} são serviços de IN/OUT e não foram roteirizadas.')
+        st.error(f'Os serviços abaixo não foram roteirizados')
+
+        container_dataframe = st.container()
+
+        container_dataframe.dataframe(df_router_filtrado[df_router_filtrado['Id_Servico'].isin(id_servico_nao_roteirizados)]
+                                      [['Data Execucao', 'Reserva', 'Modo do Servico', 'Tipo de Servico', 'Servico', 'Voo', 'Horario Voo']], hide_index=True, use_container_width=True)
+
+def ajustar_nomenclatura_passeios_tt_pvt(row):
+
+    info = f"PRIVATIVO | {row['Passeios | OUT']}\nObs.: {row['Observacao']}"
+
+    if row['Cadeirante'] != '':
+
+        info += "\nAtenção Paxs Cadeirante"
+    
+    if row['Est Origem'] == 'BA´RA HOTEL':
+
+        info += "\nAtenção Paxs VIPs BARA"
+
+    if pd.notna(row['Região Hotel']):
+
+        info += f"\nAtenção HOTEL {row['Região Hotel']}"
+
+    if 'ESCADINHA' in row['Observacao']:
+
+        info += "\nAtenção Colocar Escadinha"
+
+    info += f"\nReserva: {row['Reserva']}"
+
+    return info
 
 def criar_df_tt_pvt_final(df_router_filtrado):
 
@@ -188,52 +207,46 @@ def criar_df_tt_pvt_final(df_router_filtrado):
     mask_tt_pvt = (df_router_filtrado['Tipo de Servico'].isin(['TOUR', 'TRANSFER'])) & (df_router_filtrado['Modo do Servico']!='REGULAR') & \
         (df_router_filtrado['Data Execucao']==st.session_state.data_roteiro)
 
-    df_tt_pvt = df_router_filtrado[mask_tt_pvt][['Reserva', 'Servico', 'Nome Original Servico', 'Total ADT | CHD', 'Horario Apresentacao', 'Cadeirante', 'Observacao', 'Est Origem']].reset_index(drop=True)
+    df_tt_pvt = df_router_filtrado[mask_tt_pvt][['Reserva', 'Servico', 'Nome Original Servico', 'Total ADT | CHD', 'Horario Apresentacao', 'Cadeirante', 'Observacao', 'Est Origem', 'Id_Servico']]\
+        .reset_index(drop=True)
 
     # Inserindo coluna de Região Hotel
 
     df_tt_pvt = pd.merge(df_tt_pvt, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
 
-    # Completando todas as colunas e renomeando as que precisam
-
-    df_tt_pvt[['Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'IN', 'Paxs IN']] = ''
-
     df_tt_pvt = df_tt_pvt.rename(columns={'Servico': 'Passeios | OUT', 'Total ADT | CHD': 'Paxs Passeios | OUT'})
 
-    # Colocando a observação abaixo do nome do passeio
+    # Colocando Observação, pax cadeirante, vip Bara, hoteis camboinha ou pitimbu e reserva no nome do passeio
 
-    df_tt_pvt['Passeios | OUT'] = df_tt_pvt.apply(lambda row: f"{row['Passeios | OUT']}\nObs.: {row['Observacao']}", axis=1)
-
-    # Colocando aviso se existe pax cadeirante
-
-    df_tt_pvt['Passeios | OUT'] = df_tt_pvt.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs Cadeirante" if row['Cadeirante']!='' else row['Passeios | OUT'], axis=1)
-
-    # Colocando aviso se o hotel for BA´RA
-
-    df_tt_pvt['Passeios | OUT'] = df_tt_pvt.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs VIPs BARA" if row['Est Origem']=='BA´RA HOTEL' else row['Passeios | OUT'], axis=1)
-
-    # Colocando aviso se o hotel for Camboinha ou Pitimbu
-
-    df_tt_pvt['Passeios | OUT'] = df_tt_pvt.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if not pd.isna(row['Região Hotel']) else row['Passeios | OUT'], axis=1)
-
-    # Colocando código da reserva
-
-    df_tt_pvt['Passeios | OUT'] = df_tt_pvt.apply(lambda row: f"{row['Passeios | OUT']}\nReserva: {row['Reserva']}", axis=1)
+    df_tt_pvt['Passeios | OUT'] = df_tt_pvt.apply(ajustar_nomenclatura_passeios_tt_pvt, axis=1)
 
     # Selecionando colunas que vão ficar no dataframe final
 
-    df_tt_pvt_final = df_tt_pvt[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Nome Original Servico']]\
-        .sort_values(by='Horario Apresentacao').reset_index(drop=True)
-    
-    # Colocando a palavra Privativo no nome dos passeios
-
-    df_tt_pvt_final['Passeios | OUT'] = 'PRIVATIVO | ' + df_tt_pvt_final['Passeios | OUT']
+    df_tt_pvt_final = df_tt_pvt[['Horario Apresentacao', 'Passeios | OUT', 'Paxs Passeios | OUT', 'Nome Original Servico', 'Id_Servico']].sort_values(by='Horario Apresentacao').reset_index(drop=True)
 
     return df_tt_pvt_final
 
-def cadeirante_agg(series):
+def existe_x_na_coluna(series):
 
     return 'X' if 'X' in series.values else ''
+
+def transformar_em_string(series):
+
+    return ', '.join(list(set(series.dropna())))
+
+def ajustar_nomenclatura_cadeirante_regiao_hotel(row):
+
+    info = row['Passeios | OUT']
+
+    if row['Cadeirante']!='':
+
+        info += "\nAtenção Paxs Cadeirante"
+
+    if row['Região Hotel']!='':
+
+        info += f"\nAtenção HOTEL {row['Região Hotel']}"
+
+    return info
 
 def criar_df_tt_reg_final(df_router_filtrado):
 
@@ -250,26 +263,18 @@ def criar_df_tt_reg_final(df_router_filtrado):
 
     # Agrupando serviços
 
-    df_tt_reg_group = df_tt_reg.groupby(['Servico', 'Nome Original Servico']).agg({'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'first', 'Cadeirante': cadeirante_agg, 'Região Hotel': transformar_em_string}).reset_index()
-
-    # Completando todas as colunas e renomeando as que precisam
-
-    df_tt_reg_group[['Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'IN', 'Paxs IN']] = ''
+    df_tt_reg_group = df_tt_reg.groupby(['Servico', 'Nome Original Servico']).agg({'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'first', 'Cadeirante': existe_x_na_coluna, 
+                                                                                   'Região Hotel': transformar_em_string}).reset_index()
 
     df_tt_reg_group = df_tt_reg_group.rename(columns={'Servico': 'Passeios | OUT', 'Total ADT | CHD': 'Paxs Passeios | OUT'})
 
-    # Colocando aviso se existe pax cadeirante
+    # Colocando aviso se existe pax cadeirante e hotel camboinha ou pitimbu
 
-    df_tt_reg_group['Passeios | OUT'] = df_tt_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs Cadeirante" if row['Cadeirante']!='' else row['Passeios | OUT'], axis=1)
-
-    # Colocando aviso se o hotel for Camboinha ou Pitimbu
-
-    df_tt_reg_group['Passeios | OUT'] = df_tt_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' else row['Passeios | OUT'], axis=1)
+    df_tt_reg_group['Passeios | OUT'] = df_tt_reg_group.apply(ajustar_nomenclatura_cadeirante_regiao_hotel, axis=1)
 
     # Selecionando colunas que vão ficar no dataframe final
 
-    df_tt_reg_group_final = df_tt_reg_group[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Nome Original Servico']]\
-        .sort_values(by='Horario Apresentacao').reset_index(drop=True)
+    df_tt_reg_group_final = df_tt_reg_group[['Horario Apresentacao', 'Passeios | OUT', 'Paxs Passeios | OUT', 'Nome Original Servico']].sort_values(by='Horario Apresentacao').reset_index(drop=True)
     
     return df_tt_reg_group_final
 
@@ -319,7 +324,7 @@ def inserir_deixar_quadrilha(df_tt):
 
     if (df_tt['Passeios | OUT']=='CATAMARÃ DO FORRÓ').any():
 
-        deixar_trilha = [time(23), '', '', '', '', '', 'DEIXAR QUADRILHA', '', 13, '', 'DEIXAR QUADRILHA', None, None]
+        deixar_trilha = [time(23), 'DEIXAR QUADRILHA', 13, 'DEIXAR QUADRILHA', None, None, None]
 
         df_tt.loc[len(df_tt)] = deixar_trilha
 
@@ -327,43 +332,51 @@ def inserir_deixar_quadrilha(df_tt):
 
     return df_tt
 
-def identificando_quantidade_carros_trilhas(df_tt):
+def transformar_pax_em_lista(paxs, limite_paxs):
 
-    df_trilhas = df_tt[(df_tt['Passeios | OUT'].isin(['TRILHA DOS COQUEIRAIS', 'TRILHA DOS MIRANTES DA COSTA DO CONDE'])) & (df_tt['Paxs Passeios | OUT']>9)].reset_index()
+    paxs=int(paxs)
+    
+    lista_n_paxs = [limite_paxs] * (paxs // limite_paxs)
 
-    for index in range(len(df_trilhas)):
+    restante = paxs % limite_paxs
 
-        trilha = df_trilhas.at[index, 'Passeios | OUT']
+    if restante:
 
-        paxs_trilha = df_trilhas.at[index, 'Paxs Passeios | OUT']
+        lista_n_paxs.append(restante)
+    
+    return lista_n_paxs
 
-        horario = df_trilhas.at[index, 'Horario Apresentacao']
+def identificando_quantidade_carros_trilhas(df_tt, limite_paxs):
 
-        index_principal = df_trilhas.at[index, 'index']
+    df_trilhas = df_tt[(df_tt['Passeios | OUT'].isin(['TRILHA DOS COQUEIRAIS', 'TRILHA DOS MIRANTES DA COSTA DO CONDE'])) & (df_tt['Paxs Passeios | OUT']>limite_paxs)].reset_index()
 
-        n_loops = int(paxs_trilha / 9)
+    df_trilhas['Paxs Passeios | OUT'] = df_trilhas['Paxs Passeios | OUT'].apply(transformar_pax_em_lista, args=(limite_paxs,))
 
-        for loop in range(n_loops):
+    df_trilhas = df_trilhas.explode('Paxs Passeios | OUT')
 
-            df_tt.loc[len(df_tt)] = [horario, '', '', '', '', '', trilha, '', 9, '', trilha, None, None]
+    df_tt = df_tt.drop(index=df_trilhas['index'].unique())
 
-            df_tt.loc[index_principal, 'Paxs Passeios | OUT'] -= 9
+    df_trilhas = df_trilhas.drop(columns='index')
+
+    df_tt = pd.concat([df_tt, df_trilhas], ignore_index=True)
 
     df_tt = df_tt.sort_values(by='Horario Apresentacao').reset_index(drop=True)
 
     return df_tt
 
-def ajustar_nomes_ilha_extremo(df_tt):
+def adicionar_embarque_ponto_de_apoio(row):
 
-    df_tt['Passeios | OUT'] = df_tt.apply(lambda row: f"{row['Passeios | OUT']}\nEmbarque: {row['Embarque']}" 
-                                        if row['Embarque'] not in [None, 'None', ''] and not pd.isna(row['Embarque']) else row['Passeios | OUT'], axis=1)
+    info = row['Passeios | OUT']
 
-    df_tt['Passeios | OUT'] = df_tt.apply(lambda row: f"{row['Passeios | OUT']}\nPonto de Apoio: {row['Ponto de Apoio']}" 
-                                        if row['Ponto de Apoio'] not in [None, 'None', ''] and not pd.isna(row['Ponto de Apoio']) else row['Passeios | OUT'], axis=1)
+    if pd.notna(row['Embarque']):
 
-    df_tt = df_tt.drop(columns=['Ponto de Apoio', 'Embarque', 'Nome Original Servico'])
+        info += f"\nEmbarque: {row['Embarque']}" 
 
-    return df_tt
+    if pd.notna(row['Ponto de Apoio']):
+
+        info += f"\nPonto de Apoio: {row['Ponto de Apoio']}"
+
+    return info
 
 def criar_df_out(df_router_filtrado):
 
@@ -388,21 +401,17 @@ def criar_df_out(df_router_filtrado):
 
     return df_out
 
-def avisar_reg_out_g3_0001(df_out):
+def avisar_reg_g3_0001(df):
 
-    tipo_servico = df_out['Tipo de Servico'].iloc[0]
+    tipo_servico = df['Tipo de Servico'].iloc[0]
 
-    lista_voo_g3_0001_regular = df_out[(df_out['Voo'].isin(['G3 - 0001'])) & (df_out['Modo do Servico']=='REGULAR')]['Id_Servico'].unique().tolist()
+    lista_voo_g3_0001_regular = df[(df['Voo'].isin(['G3 - 0001'])) & (df['Modo do Servico']=='REGULAR')]['Id_Servico'].unique().tolist()
 
-    nomes_reservas = ', '.join(df_out[df_out['Id_Servico'].isin(lista_voo_g3_0001_regular)]['Reserva'].unique().tolist())
+    nomes_reservas = ', '.join(df[df['Id_Servico'].isin(lista_voo_g3_0001_regular)]['Reserva'].unique().tolist())
 
     if len(lista_voo_g3_0001_regular)>0:
 
         st.error(f'As reservas {nomes_reservas} estão com voo {tipo_servico} G3 - 0001 e são regulares.')
-
-def transformar_em_string(apoio):
-
-    return ', '.join(list(set(apoio.dropna())))
 
 def ajustar_nomes_operadoras(df_out):
 
@@ -420,44 +429,55 @@ def agrupar_roteiros_carros_nome_escala_out(df_out):
 
     df_out = pd.merge(df_out, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
 
+    df_out['Id_Servico'] = df_out['Id_Servico'].astype(str)
+
     df_out_reg_group = df_out[df_out['Modo do Servico']=='REGULAR'].groupby(['Data Execucao', 'Modo do Servico', 'Roteiro', 'Carros', 'Servico', 'Região OUT'])\
-        .agg({'Voo | Horario Voo': transformar_em_string, 'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'min', 'Cadeirante': cadeirante_agg, 'Região Hotel': transformar_em_string}).reset_index()
+        .agg({'Voo | Horario Voo': transformar_em_string, 'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'min', 'Cadeirante': existe_x_na_coluna, 'Região Hotel': transformar_em_string, 
+              'Id_Servico': transformar_em_string}).reset_index()
+    
+    df_voo_horario = df_out.groupby(['Roteiro', 'Carros', 'Voo | Horario Voo', 'Parceiro'])[['Total ADT | CHD']].sum().reset_index()  
 
-    for index in range(len(df_out_reg_group)):
+    df_voo_horario['Parceiro | Paxs'] = df_voo_horario['Total ADT | CHD'].astype(int).astype(str) + ' ' + df_voo_horario['Parceiro']
 
-        lista_voos_horarios = df_out_reg_group.at[index, 'Voo | Horario Voo'].split(', ')
+    for index, row in df_out_reg_group.iterrows():
 
-        roteiro = df_out_reg_group.at[index, 'Roteiro']
-
-        carro = df_out_reg_group.at[index, 'Carros']
-
-        regiao = df_out_reg_group.at[index, 'Região OUT']
+        lista_voos_horarios = row['Voo | Horario Voo'].split(', ')
 
         lista_nomes_escala = []
 
         for voo_horario in lista_voos_horarios:
 
-            df_voo_horario = df_out[(df_out['Roteiro']==roteiro) & (df_out['Carros']==carro) & (df_out['Voo | Horario Voo']==voo_horario)].groupby(['Voo | Horario Voo', 'Parceiro'])\
-                [['Total ADT | CHD']].sum().reset_index()    
+            df_ref = df_voo_horario[(df_voo_horario['Roteiro']==row['Roteiro']) & (df_voo_horario['Carros']==row['Carros']) & (df_voo_horario['Voo | Horario Voo']==voo_horario)]
 
-            df_voo_horario['Parceiro | Paxs'] = df_voo_horario['Total ADT | CHD'].astype(int).astype(str) + ' ' + df_voo_horario['Parceiro']
-
-            nome_escala = f"TRF OUT {regiao} | {voo_horario[:15]} | {' '.join(df_voo_horario['Parceiro | Paxs'].unique())}"
+            nome_escala = f"TRF OUT {row['Região OUT']} | {voo_horario[:15]} | {' '.join(df_ref['Parceiro | Paxs'].unique())}"
 
             lista_nomes_escala.append(nome_escala)
 
-        df_out_reg_group.at[index, 'Passeios | OUT'] = '\n'.join(lista_nomes_escala)
+        df_out_reg_group.loc[index, 'Passeios | OUT'] = '\n'.join(lista_nomes_escala)
 
-    # Colocando aviso se existe pax cadeirante
+    # Colocando aviso se existe pax cadeirante e hotel camboinha ou pitimbu
 
-    df_out_reg_group['Passeios | OUT'] = df_out_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs Cadeirante" if row['Cadeirante']!='' else row['Passeios | OUT'], axis=1)
+    df_out_reg_group['Passeios | OUT'] = df_out_reg_group.apply(ajustar_nomenclatura_cadeirante_regiao_hotel, axis=1)
 
-    # Colocando aviso se o hotel for Camboinha ou Pitimbu
+    return df_out_reg_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros', 'Id_Servico']]
 
-    df_out_reg_group['Passeios | OUT'] = df_out_reg_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' 
-                                                                else row['Passeios | OUT'], axis=1)
+def ajustar_nomenclatura_cadeirante_bara_regiao_hotel(row):
 
-    return df_out_reg_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros']]
+    info = row['Passeios | OUT']
+
+    if row['Cadeirante']!='':
+
+        info += "\nAtenção Paxs Cadeirante"
+
+    if row['Est Origem'] == 'BA´RA HOTEL':
+
+        info += "\nAtenção Paxs VIPs BARA"
+
+    if row['Região Hotel']!='':
+
+        info += f"\nAtenção HOTEL {row['Região Hotel']}"
+
+    return info
 
 def gerar_out_pvt(df_out):
 
@@ -472,26 +492,15 @@ def gerar_out_pvt(df_out):
     
     # Colocando aviso se existe pax cadeirante
 
-    df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs Cadeirante" if row['Cadeirante']!='' else row['Passeios | OUT'], axis=1)
-
-    # Colocando aviso se o hotel for Camboinha ou Pitimbu
-
-    df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção HOTEL {row['Região Hotel']}" if not pd.isna(row['Região Hotel']) 
-                                                                else row['Passeios | OUT'], axis=1)
+    df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(ajustar_nomenclatura_cadeirante_bara_regiao_hotel, axis=1)
     
-    # Colocando aviso se o hotel for BA´RA
-
-    df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(lambda row: f"{row['Passeios | OUT']}\nAtenção Paxs VIPs BARA" if row['Est Origem']=='BA´RA HOTEL' else row['Passeios | OUT'], axis=1)
-    
-    return df_out_pvt_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros']]
+    return df_out_pvt_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros', 'Id_Servico']]
 
 def juntar_reg_pvt_out(df_out_reg_group, df_out_pvt_group):
 
     df_out_final = pd.concat([df_out_reg_group, df_out_pvt_group], ignore_index=True)
 
     df_out_final = df_out_final.sort_values(by='Horario Apresentacao').reset_index(drop=True)
-
-    df_out_final[['Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'IN', 'Paxs IN']] = ''
 
     df_out_final = df_out_final.rename(columns={'Total ADT | CHD': 'Paxs Passeios | OUT'})
 
@@ -549,6 +558,20 @@ def criar_df_in(df_router_filtrado):
 
     return df_in
 
+def ajustar_nomenclatura_cadeirante_regiao_hotel_in(row):
+
+    info = row['IN']
+
+    if row['Cadeirante']!='':
+
+        info += "\nAtenção Paxs Cadeirante"
+
+    if row['Região Hotel']!='':
+
+        info += f"\nAtenção HOTEL {row['Região Hotel']}"
+
+    return info
+
 def agrupar_roteiros_carros_nome_escala_in(df_in):
 
     df_in['Voo | Horario Voo'] = df_in['Voo'] + ' ' + df_in['Horario Voo'].astype(str)
@@ -557,70 +580,78 @@ def agrupar_roteiros_carros_nome_escala_in(df_in):
 
     df_in = pd.merge(df_in, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
 
+    df_in['Id_Servico'] = df_in['Id_Servico'].astype(str)
+
     df_in_reg_group = df_in[df_in['Modo do Servico']=='REGULAR'].groupby(['Data Execucao', 'Modo do Servico', 'Roteiro', 'Carros', 'Servico', 'Região IN'])\
-        .agg({'Voo | Horario Voo': transformar_em_string, 'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'min', 'Cadeirante': cadeirante_agg, 'Região Hotel': transformar_em_string}).reset_index()
+        .agg({'Voo | Horario Voo': transformar_em_string, 'Total ADT | CHD': 'sum', 'Horario Apresentacao': 'min', 'Cadeirante': existe_x_na_coluna, 'Região Hotel': transformar_em_string, 
+              'Id_Servico': transformar_em_string}).reset_index()
+    
+    df_voo_horario = df_in.groupby(['Roteiro', 'Carros', 'Voo | Horario Voo', 'Parceiro'])[['Total ADT | CHD']].sum().reset_index()  
 
-    for index in range(len(df_in_reg_group)):
+    df_voo_horario['Parceiro | Paxs'] = df_voo_horario['Total ADT | CHD'].astype(int).astype(str) + ' ' + df_voo_horario['Parceiro']
 
-        lista_voos_horarios = df_in_reg_group.at[index, 'Voo | Horario Voo'].split(', ')
+    for index, row in df_in_reg_group.iterrows():
 
-        roteiro = df_in_reg_group.at[index, 'Roteiro']
-
-        carro = df_in_reg_group.at[index, 'Carros']
-
-        regiao = df_in_reg_group.at[index, 'Região IN']
+        lista_voos_horarios = row['Voo | Horario Voo'].split(', ')
 
         lista_nomes_escala = []
 
         for voo_horario in lista_voos_horarios:
 
-            df_voo_horario = df_in[(df_in['Roteiro']==roteiro) & (df_in['Carros']==carro) & (df_in['Voo | Horario Voo']==voo_horario)].groupby(['Voo | Horario Voo', 'Parceiro'])\
-                [['Total ADT | CHD']].sum().reset_index()    
+            df_ref = df_voo_horario[(df_voo_horario['Roteiro']==row['Roteiro']) & (df_voo_horario['Carros']==row['Carros']) & (df_voo_horario['Voo | Horario Voo']==voo_horario)]
 
-            df_voo_horario['Parceiro | Paxs'] = df_voo_horario['Total ADT | CHD'].astype(int).astype(str) + ' ' + df_voo_horario['Parceiro']
-
-            nome_escala = f"TRF IN {regiao} | {voo_horario[:15]} | {' '.join(df_voo_horario['Parceiro | Paxs'].unique())}"
+            nome_escala = f"TRF IN {row['Região IN']} | {voo_horario[:15]} | {' '.join(df_ref['Parceiro | Paxs'].unique())}"
 
             lista_nomes_escala.append(nome_escala)
 
-        df_in_reg_group.at[index, 'IN'] = '\n'.join(lista_nomes_escala)
+        df_in_reg_group.loc[index, 'IN'] = '\n'.join(lista_nomes_escala)
 
-    # Colocando aviso se existe pax cadeirante
+    # Colocando aviso se existe pax cadeirante e hotel camboinha ou pitimbu
 
-    df_in_reg_group['IN'] = df_in_reg_group.apply(lambda row: f"{row['IN']}\nAtenção Paxs Cadeirante" if row['Cadeirante']!='' else row['IN'], axis=1)
+    df_in_reg_group['IN'] = df_in_reg_group.apply(ajustar_nomenclatura_cadeirante_regiao_hotel_in, axis=1)
 
-    # Colocando aviso se o hotel for Camboinha ou Pitimbu
+    return df_in_reg_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros', 'Id_Servico']]
 
-    df_in_reg_group['IN'] = df_in_reg_group.apply(lambda row: f"{row['IN']}\nAtenção HOTEL {row['Região Hotel']}" if row['Região Hotel']!='' 
-                                                                else row['IN'], axis=1)
+def ajustar_nomenclatura_cadeirante_bara_regiao_hotel_in(row):
 
-    return df_in_reg_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros']]
+    info = row['IN']
+
+    if row['Cadeirante']!='':
+
+        info += "\nAtenção Paxs Cadeirante"
+
+    if row['Est Origem'] == 'BA´RA HOTEL':
+
+        info += "\nAtenção Paxs VIPs BARA"
+
+    if row['Região Hotel']!='':
+
+        info += f"\nAtenção HOTEL {row['Região Hotel']}"
+
+    return info
 
 def gerar_in_pvt(df_in):
 
     df_in_pvt_group = df_in[df_in['Modo do Servico']!='REGULAR']
 
-    df_in_pvt_group['IN'] = 'PRIVATIVO | TRF IN ' +  df_in_pvt_group['Região IN'] + ' | ' + df_in_pvt_group['Voo | Horario Voo'].str[:15] + ' | ' + \
-        df_in_pvt_group['Total ADT | CHD'].astype(int).astype(str) + ' PAXS\nReserva: ' + df_in_pvt_group['Reserva']
-    
-    # Inserindo coluna de Região Hotel
-    
-    df_in_pvt_group = pd.merge(df_in_pvt_group, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
-    
-    # Colocando aviso se existe pax cadeirante
+    if len(df_in_pvt_group)>0:
 
-    df_in_pvt_group['IN'] = df_in_pvt_group.apply(lambda row: f"{row['IN']}\nAtenção Paxs Cadeirante" if row['Cadeirante']!='' else row['IN'], axis=1)
+        df_in_pvt_group['IN'] = 'PRIVATIVO | TRF IN ' +  df_in_pvt_group['Região IN'] + ' | ' + df_in_pvt_group['Voo | Horario Voo'].str[:15] + ' | ' + \
+            df_in_pvt_group['Total ADT | CHD'].astype(int).astype(str) + ' PAXS\nReserva: ' + df_in_pvt_group['Reserva']
+        
+        # Inserindo coluna de Região Hotel
+        
+        df_in_pvt_group = pd.merge(df_in_pvt_group, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
+        
+        # Colocando aviso se existe pax cadeirante
 
-    # Colocando aviso se o hotel for Camboinha ou Pitimbu
-
-    df_in_pvt_group['IN'] = df_in_pvt_group.apply(lambda row: f"{row['IN']}\nAtenção HOTEL {row['Região Hotel']}" if not pd.isna(row['Região Hotel']) 
-                                                                else row['IN'], axis=1)
+        df_in_pvt_group['IN'] = df_in_pvt_group.apply(ajustar_nomenclatura_cadeirante_bara_regiao_hotel_in, axis=1)
+        
+        return df_in_pvt_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros']]
     
-    # Colocando aviso se o hotel for BA´RA
+    else:
 
-    df_in_pvt_group['IN'] = df_in_pvt_group.apply(lambda row: f"{row['IN']}\nAtenção Paxs VIPs BARA" if row['Est Origem']=='BA´RA HOTEL' else row['IN'], axis=1)
-    
-    return df_in_pvt_group[['Horario Apresentacao', 'IN', 'Total ADT | CHD', 'Roteiro', 'Carros']]
+        return df_in_pvt_group
 
 def juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group):
 
@@ -632,11 +663,9 @@ def juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group):
 
     df_in_final = pd.concat([df_in_dia, df_in_madrugada], ignore_index=True)
 
-    df_in_final[['Veiculo', 'Cap.', 'Reb.', 'Motorista', 'Guia', 'Passeios | OUT', 'Paxs Passeios | OUT']] = ''
-
     df_in_final = df_in_final.rename(columns={'Total ADT | CHD': 'Paxs IN'})
 
-    return df_in_final[df_tt_out.columns]
+    return df_in_final
 
 def inserir_dados_gdrive(df_previa, aba_excel, id_gsheet):
 
@@ -661,7 +690,7 @@ def inserir_dados_gdrive(df_previa, aba_excel, id_gsheet):
 
 def montar_linha_insercao(selected_rows_in_linha_total):
 
-    linha_insercao = selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]
+    linha_insercao = selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Id_Servico_IN']]
 
     linha_insercao[['Passeios | OUT', 'Paxs Passeios | OUT']] = ['', 0]
 
@@ -669,17 +698,11 @@ def montar_linha_insercao(selected_rows_in_linha_total):
 
     return linha_insercao
 
-def incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros):
+def incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total):
 
-    # Preenche as colunas IN e Paxs IN
+    # Preenche as colunas IN, Paxs IN e Id_Servico_IN
 
-    st.session_state.df_tt_out.loc[selected_rows_out, ['IN', 'Paxs IN']] = selected_rows_in
-
-    # Preenche as colunas Roteiro e Carros
-
-    st.session_state.df_tt_out.loc[selected_rows_out, 'Roteiro'] = str(int(st.session_state.df_tt_out.loc[selected_rows_out, 'Roteiro'])) + ' | ' + str(selected_rows_in_roteiro_carros[0])
-
-    st.session_state.df_tt_out.loc[selected_rows_out, 'Carros'] = str(int(st.session_state.df_tt_out.loc[selected_rows_out, 'Carros'])) + ' | ' + str(selected_rows_in_roteiro_carros[1])
+    st.session_state.df_tt_out.loc[selected_rows_out, ['IN', 'Paxs IN', 'Id_Servico_IN']] = selected_rows_in
 
     # Retira linha de st.session_state.df_in
 
@@ -687,7 +710,7 @@ def incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_
 
     # Insere linha nos registros de trf in, pra poder voltar pra lista de trf in depois
 
-    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]], ignore_index=True)
+    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Id_Servico_IN']]], ignore_index=True)
 
     st.rerun()
 
@@ -699,6 +722,8 @@ def retirar_trf_in_previa(selected_rows_out):
 
     paxs_in = st.session_state.df_tt_out.at[selected_rows_out, 'Paxs IN']
 
+    id_servicos_in = st.session_state.df_tt_out.at[selected_rows_out, 'Id_Servico_IN']
+
     # Identificando se na linha realmente tem um trf in
 
     if 'TRF IN' in info_in:
@@ -709,7 +734,7 @@ def retirar_trf_in_previa(selected_rows_out):
 
         # Identifica qual o index da linha do df_in_controle que deve voltar pra tabela de trf in
 
-        index_df_in = st.session_state.df_in_controle.loc[(st.session_state.df_in_controle['Paxs IN']==paxs_in) & (st.session_state.df_in_controle['IN']==info_in)].index.values[0]
+        index_df_in = st.session_state.df_in_controle.loc[(st.session_state.df_in_controle['Id_Servico_IN']==id_servicos_in)].index.values[0]
 
         # Insere a linha de volta
 
@@ -727,9 +752,7 @@ def retirar_trf_in_previa(selected_rows_out):
 
             st.session_state.df_tt_out.at[selected_rows_out, 'Paxs IN'] = ''
 
-            st.session_state.df_tt_out.at[selected_rows_out, 'Roteiro'] = st.session_state.df_tt_out.at[selected_rows_out, 'Roteiro'].split(' | ')[0]
-
-            st.session_state.df_tt_out.at[selected_rows_out, 'Carros'] = st.session_state.df_tt_out.at[selected_rows_out, 'Carros'].split(' | ')[0]
+            st.session_state.df_tt_out.at[selected_rows_out, 'Id_Servico_IN'] = ''
 
         else:
 
@@ -831,7 +854,7 @@ def incluir_trf_nao_conjugado(selected_rows_in_linha_total):
 
     # Insere linha nos registros de trf in, pra poder voltar pra lista de trf in depois
 
-    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]], ignore_index=True)
+    st.session_state.df_in_controle = pd.concat([st.session_state.df_in_controle, selected_rows_in_linha_total[['Horario Apresentacao', 'IN', 'Paxs IN', 'Id_Servico_IN']]], ignore_index=True)
 
     st.rerun() 
 
@@ -839,21 +862,20 @@ def criar_df_gdrive():
 
     df_gdrive = st.session_state.df_tt_out.reset_index(drop=True)
 
-    df_gdrive['Paxs Passeios | OUT'] = df_gdrive['Paxs Passeios | OUT'].astype(int).astype(str)
-
-    df_gdrive['Paxs Passeios | OUT'] = df_gdrive['Paxs Passeios | OUT'].replace('0', '')
-
-    df_gdrive['Paxs IN'] = df_gdrive['Paxs IN'].astype(str)
+    df_gdrive['Paxs Passeios | OUT'] = df_gdrive['Paxs Passeios | OUT'].astype(int).astype(str).replace('0', '')
 
     df_gdrive['Horario Apresentacao'] = df_gdrive['Horario Apresentacao'].apply(lambda x: x.strftime('%H:%M') if pd.notnull(x) else None)
 
-    df_gdrive['Roteiro'] = df_gdrive['Roteiro'].astype(str)
+    df_gdrive['Paxs IN'] = df_gdrive['Paxs IN'].astype(str)
 
-    df_gdrive['Carros'] = df_gdrive['Carros'].astype(str)
+    df_gdrive['Id_Servico_Passeios_OUT'] = df_gdrive['Id_Servico_Passeios_OUT'].fillna('').astype(str)
+
+    df_gdrive['Id_Servico_IN'] = df_gdrive['Id_Servico_IN'].astype(str)
 
     df_gdrive[['Veiculo', 'Cap.', 'Reb.', 'Rt.', 'Motorista', 'Guia']] = ''
 
-    df_gdrive = df_gdrive[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Rt.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Roteiro', 'Carros']]
+    df_gdrive = df_gdrive[['Horario Apresentacao', 'Veiculo', 'Cap.', 'Reb.', 'Rt.', 'Motorista', 'Guia', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Id_Servico_Passeios_OUT', 
+                           'Id_Servico_IN']]
 
     return df_gdrive
 
@@ -868,9 +890,8 @@ def plotar_tabela_trf_in():
 
     if not grid_response_in['selected_rows'] is None:
 
-        selected_rows_in = [grid_response_in['selected_rows'].reset_index()['IN'].iloc[0], grid_response_in['selected_rows'].reset_index()['Paxs IN'].iloc[0]]
-
-        selected_rows_in_roteiro_carros = [grid_response_in['selected_rows'].reset_index()['Roteiro'].iloc[0], grid_response_in['selected_rows'].reset_index()['Carros'].iloc[0]]
+        selected_rows_in = [grid_response_in['selected_rows'].reset_index()['IN'].iloc[0], grid_response_in['selected_rows'].reset_index()['Paxs IN'].iloc[0], 
+                            grid_response_in['selected_rows'].reset_index()['Id_Servico_IN'].iloc[0]]
 
         selected_rows_in_linha_total = grid_response_in['selected_rows'].reset_index()
 
@@ -880,9 +901,7 @@ def plotar_tabela_trf_in():
 
         selected_rows_in_linha_total = None
 
-        selected_rows_in_roteiro_carros = None
-
-    return selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros
+    return selected_rows_in, selected_rows_in_linha_total
 
 def plotar_tabela_trf_out_passeios():
 
@@ -908,16 +927,6 @@ def plotar_tabela_trf_out_passeios():
 
     return selected_rows_out
 
-def retirar_id_servico_duplicado(df_out):
-
-    index_servicos_duplicados = df_out[df_out['Id_Servico'].duplicated()].reset_index()
-
-    index_servicos_duplicados = index_servicos_duplicados['index'].unique()
-
-    df_out = df_out.drop(index=index_servicos_duplicados).reset_index(drop=True)
-
-    return df_out
-
 def puxar_previa_de_escala(id_gsheet, nome_df, aba):
 
     nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
@@ -933,22 +942,6 @@ def puxar_previa_de_escala(id_gsheet, nome_df, aba):
     sheet_data = sheet.get_all_values()
 
     st.session_state[nome_df] = pd.DataFrame(sheet_data[1:], columns=sheet_data[0])
-
-def fetch_data(search_query, object):
-    params = {"page": 1, "fields": "", "q": search_query}
-    try:
-        if not search_query:
-            params.pop("q")
-        response = requests.get(st.session_state.base_url_get + object, params=params, verify=False)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
-        st.error(f"Ocorreu um erro: {e}")
-        return []
-    
-def handle_selection(search_query, object_name):
-    api_data = fetch_data(search_query, object_name)
-    return api_data[0]['id']
 
 def identificar_regiao_trf(servico_out):
 
@@ -970,212 +963,43 @@ def identificar_regiao_trf(servico_out):
 
 def gerar_payload_criacao_escalas(data_roteiro):
 
-    df_trf_out_in = st.session_state.df_previa[(st.session_state.df_previa['IN']!='') | (st.session_state.df_previa['Passeios | OUT'].str[:7]=='TRF OUT') | 
-                                               (st.session_state.df_previa['Passeios | OUT'].str[:19]=='PRIVATIVO | TRF OUT')].reset_index(drop=True)
+        lista_payload = []
 
-    lista_payload = []
+        for index, row in st.session_state.df_previa.iterrows():
 
-    date_str = data_roteiro.strftime('%Y-%m-%d')
+            date_str = data_roteiro.strftime('%Y-%m-%d')
 
-    for index in range(len(df_trf_out_in)):
+            if row['Guia']!='':
 
-        veiculo = df_trf_out_in.at[index, 'Veículo']
+                if row['Id_Servico_Passeios_OUT']!='':
 
-        motorista = df_trf_out_in.at[index, 'Motorista']
-
-        if veiculo!='' and motorista!='':
-
-            guia = df_trf_out_in.at[index, 'Guia']
-
-            servico_out = df_trf_out_in.at[index, 'Passeios | OUT']
-
-            servico_out_busca = identificar_regiao_trf(servico_out)
-
-            servico_in = df_trf_out_in.at[index, 'IN']
-
-            servico_in_busca = identificar_regiao_trf(servico_in)
-
-            horario = df_trf_out_in.at[index, 'Horário']
-
-            if guia!='':
-
-                id_guia = handle_selection(guia, 'guide')
-
-            id_motorista = handle_selection(motorista, 'driver')
-
-            id_veiculo = handle_selection(veiculo, 'vehicle')
-
-            if servico_out!='' and servico_in!='':
-
-                roteiro_out = int(df_trf_out_in.at[index, 'Roteiro'].split(' | ')[0])
-
-                roteiro_in = int(df_trf_out_in.at[index, 'Roteiro'].split(' | ')[1])
-
-                carro_out = int(df_trf_out_in.at[index, 'Carros'].split(' | ')[0])
-
-                carro_in = int(df_trf_out_in.at[index, 'Carros'].split(' | ')[1])
-
-                if datetime.strptime(horario, '%H:%M:%S').time()<=time(4,0):
-
-                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
-                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
-                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
-                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
-                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
-                    
-                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
-                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
-                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
-                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
-                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in))]['Id_Servico'].tolist()
-                    
-                else:
-
-                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
-                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
-                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
-                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
-                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
-                    
-                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
-                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
-                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
-                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
-                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in_busca))]['Id_Servico'].tolist()
-                    
-                if guia!='':
-
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "guide_id": id_guia,
-                        "reserve_service_ids": ids_out,
-                    }
+                    payload = {"date": date_str, "vehicle_id": row['id_veiculo'], "driver_id": row['id_motorista'], "guide_id": row['id_guia'], 
+                            "reserve_service_ids": row['Id_Servico_Passeios_OUT'].split(', ')}
 
                     lista_payload.append(payload)
 
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "guide_id": id_guia,
-                        "reserve_service_ids": ids_in,
-                    }
+                if row['Id_Servico_IN']!='':
+
+                    payload = {"date": date_str, "vehicle_id": row['id_veiculo'], "driver_id": row['id_motorista'], "guide_id": row['id_guia'], 
+                            "reserve_service_ids": row['Id_Servico_IN'].split(', ')}
 
                     lista_payload.append(payload)
 
-                else:
+            else:
 
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "reserve_service_ids": ids_out,
-                    }
+                if row['Id_Servico_Passeios_OUT']!='':
+
+                    payload = {"date": date_str, "vehicle_id": row['id_veiculo'], "driver_id": row['id_motorista'], "reserve_service_ids": row['Id_Servico_Passeios_OUT'].split(', ')}
 
                     lista_payload.append(payload)
 
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "reserve_service_ids": ids_in,
-                    }
+                if row['Id_Servico_IN']!='':
+
+                    payload = {"date": date_str, "vehicle_id": row['id_veiculo'], "driver_id": row['id_motorista'], "reserve_service_ids": row['Id_Servico_IN'].split(', ')}
 
                     lista_payload.append(payload)
 
-            elif servico_out=='' and servico_in!='':
-
-                roteiro_in = int(df_trf_out_in.at[index, 'Roteiro'])
-
-                carro_in = int(df_trf_out_in.at[index, 'Carros'])
-
-                if datetime.strptime(horario, '%H:%M:%S').time()<=time(4,0):
-
-                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
-                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
-                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
-                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
-                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in_busca))]['Id_Servico'].tolist()
-                    
-                else:
-
-                    ids_in = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='IN') & 
-                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
-                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_in) & 
-                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_in) & 
-                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_in_busca))]['Id_Servico'].tolist()
-                    
-                if guia!='':
-
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "guide_id": id_guia,
-                        "reserve_service_ids": ids_in,
-                    }
-
-                    lista_payload.append(payload)
-
-                else:
-
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "reserve_service_ids": ids_in,
-                    }
-
-                    lista_payload.append(payload)
-
-            elif servico_out!='' and servico_in=='':
-
-                roteiro_out = int(df_trf_out_in.at[index, 'Roteiro'])
-
-                carro_out = int(df_trf_out_in.at[index, 'Carros'])
-
-                if datetime.strptime(horario, '%H:%M:%S').time()<=time(4,0):
-
-                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
-                                                                            (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro+timedelta(days=1)) & 
-                                                                            (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
-                                                                            (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
-                                                                            (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
-                    
-                else:
-
-                    ids_out = st.session_state.df_historico_roteiros[(st.session_state.df_historico_roteiros['Tipo de Servico']=='OUT') & 
-                                                                    (st.session_state.df_historico_roteiros['Data Execucao']==data_roteiro) & 
-                                                                    (st.session_state.df_historico_roteiros['Roteiro']==roteiro_out) & 
-                                                                    (st.session_state.df_historico_roteiros['Carros']==carro_out) & 
-                                                                    (st.session_state.df_historico_roteiros['Servico'].str.contains(servico_out_busca))]['Id_Servico'].tolist()
-                    
-                if guia!='':
-
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "guide_id": id_guia,
-                        "reserve_service_ids": ids_out,
-                    }
-
-                    lista_payload.append(payload)
-
-                else:
-
-                    payload = {
-                        "date": date_str,
-                        "vehicle_id": id_veiculo,
-                        "driver_id": id_motorista,
-                        "reserve_service_ids": ids_out,
-                    }
-
-                    lista_payload.append(payload)
-
-    return lista_payload
+        return lista_payload
 
 def update_scale(payload):
 
@@ -1186,34 +1010,102 @@ def update_scale(payload):
     except requests.RequestException as e:
         st.error(f"Ocorreu um erro: {e}")
         return 'Erro ao atualizar a escala'
-    
+
+def retirar_voo_g3_0001(df_in_final, df_tt_out):
+
+    mask_retirar_voo_g30001_reg_in = (~df_in_final['IN'].str.contains('G3 - 0001')) & (~df_in_final['IN'].str.contains('PRIVATIVO'))
+
+    df_in_final = df_in_final[mask_retirar_voo_g30001_reg_in].reset_index(drop=True)
+
+    mask_retirar_voo_g30001_reg_out = (~df_tt_out['Passeios | OUT'].str.contains('G3 - 0001')) & (~df_tt_out['Passeios | OUT'].str.contains('PRIVATIVO'))
+
+    df_tt_out = df_tt_out[mask_retirar_voo_g30001_reg_out].reset_index(drop=True)
+
+    return df_in_final, df_tt_out
+
+def gerar_listas_de_nao_cadastrados(df, coluna):
+
+    if coluna=='Guia':
+
+        lista_a_atualizar = st.session_state.df_previa[st.session_state.df_previa[coluna]!=''][coluna].unique().tolist()
+
+    else:
+
+        lista_a_atualizar = st.session_state.df_previa[coluna].unique().tolist()
+
+    lista_phoenix = st.session_state[df][coluna].unique().tolist()
+
+    lista_nao_cadastrados = list(set(lista_a_atualizar) - set(lista_phoenix))
+
+    return lista_nao_cadastrados
+
+def gerar_mensagens_de_nao_cadastrados(lista_veiculos_nao_cadastrados, lista_motoristas_nao_cadastrados, lista_guias_nao_cadastrados):
+
+    if len(lista_veiculos_nao_cadastrados)>0:
+
+        st.error(f'Os veículos {", ".join(lista_veiculos_nao_cadastrados)} não existem no Phoenix. Precisa ajustar a nomenclatura na planilha e tentar novamente')
+
+    if len(lista_motoristas_nao_cadastrados)>0:
+
+        st.error(f'Os motoristas {", ".join(lista_motoristas_nao_cadastrados)} não existem no Phoenix. Precisa ajustar a nomenclatura na planilha e tentar novamente')
+
+    if len(lista_guias_nao_cadastrados)>0:
+
+        st.error(f'Os guias {", ".join(lista_guias_nao_cadastrados)} não existem no Phoenix. Precisa ajustar a nomenclatura na planilha e tentar novamente')
+
+    if len(lista_veiculos_nao_cadastrados)>0 or len(lista_motoristas_nao_cadastrados)>0 or len(lista_guias_nao_cadastrados)>0:
+
+        st.stop()
+
+def verificar_cadastros_veic_mot_guias():
+
+    lista_veiculos_nao_cadastrados = gerar_listas_de_nao_cadastrados('df_veiculos', 'Veículo')
+
+    lista_motoristas_nao_cadastrados = gerar_listas_de_nao_cadastrados('df_motoristas', 'Motorista')
+
+    lista_guias_nao_cadastrados = gerar_listas_de_nao_cadastrados('df_guias', 'Guia')
+
+    gerar_mensagens_de_nao_cadastrados(lista_veiculos_nao_cadastrados, lista_motoristas_nao_cadastrados, lista_guias_nao_cadastrados)
+
+def incluir_ids_veiculos_motoristas_guias():
+
+    st.session_state.df_previa = pd.merge(st.session_state.df_previa, st.session_state.df_veiculos[['Veículo', 'id_veiculo']], on='Veículo', how='left')
+
+    st.session_state.df_previa = pd.merge(st.session_state.df_previa, st.session_state.df_guias[['Guia', 'id_guia']], on='Guia', how='left')
+
+    st.session_state.df_previa = pd.merge(st.session_state.df_previa, st.session_state.df_motoristas[['Motorista', 'id_motorista']], on='Motorista', how='left')
+
 st.set_page_config(layout='wide')
 
 if not 'vw_atual' in st.session_state:
 
     st.session_state.vw_atual = 'vw_previa'
 
-st.session_state.titulo = 'Prévia de Escala - João Pessoa'
+if not 'primeira_previa' in st.session_state:
 
-st.session_state.id_gsheet = '1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY'
+    st.session_state.primeira_previa = True
 
-st.session_state.base_url_get = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/'
+    st.session_state.titulo = 'Prévia de Escala - João Pessoa'
 
-st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
+    st.session_state.id_gsheet = '1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY'
 
-st.title(st.session_state.titulo)
+    st.session_state.base_url_get = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/'
 
-st.divider()
+    st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
 
 if not 'df_in_controle' in st.session_state:
 
-    st.session_state.df_in_controle = pd.DataFrame(columns=['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros'])
+    st.session_state.df_in_controle = pd.DataFrame(columns=['Horario Apresentacao', 'IN', 'Paxs IN', 'Id_Servico_IN'])
 
 if not 'df_router' in st.session_state or st.session_state.vw_atual != 'vw_previa':
 
     with st.spinner('Puxando dados do Phoenix...'):
 
         puxar_dados_phoenix()
+
+st.title(st.session_state.titulo)
+
+st.divider()
 
 row1=st.columns(3)
 
@@ -1237,35 +1129,34 @@ with row1[1]:
 
     escalar_trf_privativos = st.button('Escalar TRF IN e OUT')
 
+    if escalar_trf_privativos:
+
+        with st.spinner('Puxando Prévia do Google Drive...'):
+
+            puxar_previa_de_escala(st.session_state.id_gsheet, 'df_previa', 'Prévia Escala')
+
+            incluir_ids_veiculos_motoristas_guias()
+
+        verificar_cadastros_veic_mot_guias()
+
+        lista_payload = gerar_payload_criacao_escalas(data_roteiro)
+
+        with st.spinner('Criando escalas no Phoenix...'):
+
+            for escala in lista_payload:
+
+                status = update_scale(escala)
+
 st.divider()
-
-if escalar_trf_privativos:
-
-    with st.spinner('Puxando Prévia do Google Drive...'):
-
-        puxar_previa_de_escala(st.session_state.id_gsheet, 'df_previa', 'Prévia Escala')
-
-    with st.spinner('Puxando roteiros de IN e OUT...'):
-
-        puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
-                                        'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
-
-    lista_payload = gerar_payload_criacao_escalas(data_roteiro)
-
-    with st.spinner('Criando escalas no Phoenix...'):
-
-        for escala in lista_payload:
-
-            status = update_scale(escala)
 
 if gerar_layout:
 
     # Puxando histórico de roteiros
 
-    with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
+    # with st.spinner('Puxando roteiros de IN e OUT, pontos de apoio, agenda de embarques, nomes de operadoras, hoteis camboinha/pitimbu...'):
 
-        puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
-                                        'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
+    #     puxar_historico_roteiros_apoios(st.session_state.id_gsheet, 'df_historico_roteiros', 'Histórico Roteiros', 'df_pontos_de_apoio', 'Pontos de Apoio', 'df_embarques', 'Agenda Embarques', 
+    #                                     'df_operadoras', 'Nomes Operadoras', 'df_hoteis_pitimbu_camboinha', 'Hoteis Camboinha | Pitimbu')
 
     df_router_filtrado = criar_df_router_filtrado()
 
@@ -1277,7 +1168,7 @@ if gerar_layout:
 
     df_tt_pvt = criar_df_tt_pvt_final(df_router_filtrado)
 
-    # Criando df com TOUR e TRANSFER privativo
+    # Criando df com TOUR e TRANSFER regular
 
     df_tt_reg = criar_df_tt_reg_final(df_router_filtrado)
 
@@ -1311,11 +1202,19 @@ if gerar_layout:
 
     # Aumentando quantidade de veículos nos trilhas se for mais que 9 paxs
 
-    df_tt = identificando_quantidade_carros_trilhas(df_tt)
+    df_tt = identificando_quantidade_carros_trilhas(df_tt, 9)
 
     # Ajustando nomes de passeios com Pontos de Apoio e Embarques
 
-    df_tt = ajustar_nomes_ilha_extremo(df_tt)
+    df_tt['Passeios | OUT'] = df_tt.apply(adicionar_embarque_ponto_de_apoio, axis=1)
+
+    # Retirando colunas que não vou mais usar
+
+    df_tt = df_tt.drop(columns=['Ponto de Apoio', 'Embarque', 'Nome Original Servico'])
+
+    # Tranformando coluna Id_Servico em string pra quando juntar com os OUTs e INs tudo estar no mesmo formato
+
+    df_tt['Id_Servico'] = df_tt['Id_Servico'].fillna(0).astype(int).astype(str).replace('0', '')
 
     # Criado df com OUTs do dia e madrugada
 
@@ -1323,15 +1222,11 @@ if gerar_layout:
 
     # Inserir definição de roteiros e carros
 
-    df_out = pd.merge(df_out, st.session_state.df_historico_roteiros[['Id_Servico', 'Roteiro', 'Carros']], on='Id_Servico', how='left')
-
-    # Retirando Id_Servico duplicados por terem sido roteirizados duas vezes
-
-    df_out = retirar_id_servico_duplicado(df_out)
+    df_out = pd.merge(df_out, st.session_state.df_historico_roteiros[['Data Execucao', 'Id_Servico', 'Roteiro', 'Carros']], on=['Data Execucao', 'Id_Servico'], how='left')
 
     # Avisar se tiver reserva regular no voo G3 - 0001
 
-    avisar_reg_out_g3_0001(df_out)
+    avisar_reg_g3_0001(df_out)
 
     # Ajustando nomes de operadoras
 
@@ -1353,17 +1248,19 @@ if gerar_layout:
 
     df_tt_out = concat_tt_out_ordem_cronologica(df_tt, df_out_final)
 
+    df_tt_out = df_tt_out.rename(columns={'Id_Servico': 'Id_Servico_Passeios_OUT'})
+
     # Criado df com INs do dia e madrugada
 
     df_in = criar_df_in(df_router_filtrado)
 
     # Inserir definição de roteiros e carros
 
-    df_in = pd.merge(df_in, st.session_state.df_historico_roteiros[['Id_Servico', 'Roteiro', 'Carros']], on='Id_Servico', how='left')
+    df_in = pd.merge(df_in, st.session_state.df_historico_roteiros[['Data Execucao', 'Id_Servico', 'Roteiro', 'Carros']], on=['Data Execucao', 'Id_Servico'], how='left')
 
     # Avisar se tiver reserva regular no voo G3 - 0001
 
-    avisar_reg_out_g3_0001(df_in)
+    avisar_reg_g3_0001(df_in)
 
     # Ajustando nomes de operadoras
 
@@ -1381,19 +1278,23 @@ if gerar_layout:
 
     df_in_final = juntar_reg_pvt_in(df_in_reg_group, df_in_pvt_group)
 
+    df_in_final = df_in_final.rename(columns={'Id_Servico': 'Id_Servico_IN'})
+
     # Retirando voo G3 - 0001 REGULAR da prévia
 
-    df_in_final = df_in_final[~(df_in_final['IN'].str.contains('G3 - 0001') & ~df_in_final['IN'].str.contains('PRIVATIVO'))].reset_index(drop=True)
+    df_in_final, df_tt_out = retirar_voo_g3_0001(df_in_final, df_tt_out)
 
-    st.session_state.df_tt_out = df_tt_out[['Horario Apresentacao', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Roteiro', 'Carros']]
+    df_tt_out[['IN', 'Paxs IN', 'Id_Servico_IN']] = ''
 
-    st.session_state.df_in = df_in_final[['Horario Apresentacao', 'IN', 'Paxs IN', 'Roteiro', 'Carros']]
+    st.session_state.df_tt_out = df_tt_out[['Horario Apresentacao', 'Passeios | OUT', 'IN', 'Paxs Passeios | OUT', 'Paxs IN', 'Id_Servico_Passeios_OUT', 'Id_Servico_IN']]
+
+    st.session_state.df_in = df_in_final[['Horario Apresentacao', 'IN', 'Paxs IN', 'Id_Servico_IN']]
 
 if 'df_tt_out' in st.session_state:
 
     # Plotar tabela com TRF IN
 
-    selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros = plotar_tabela_trf_in()
+    selected_rows_in, selected_rows_in_linha_total = plotar_tabela_trf_in()
 
     # Plotar tabela com Passeios e OUTs
 
@@ -1413,7 +1314,7 @@ if 'df_tt_out' in st.session_state:
 
     if incluir_trf_in and not selected_rows_out is None and not selected_rows_in is None:
 
-        incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total, selected_rows_in_roteiro_carros)
+        incluir_trf_in_conjugado(selected_rows_out, selected_rows_in, selected_rows_in_linha_total)
 
     # Se for tirar um TRF IN da prévia
 
@@ -1437,7 +1338,7 @@ if 'df_tt_out' in st.session_state:
 
         if len(st.session_state.df_in)>0:
 
-            st.error('Ainda existe TRF IN fora da prévia. Termina de inserí-los e tente novamente')
+            st.error('Ainda existe TRF IN fora da prévia. Termine de inserí-los e tente novamente')
 
         else:
 
