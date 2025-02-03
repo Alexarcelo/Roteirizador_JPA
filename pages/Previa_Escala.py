@@ -1013,11 +1013,11 @@ def update_scale(payload):
 
 def retirar_voo_g3_0001(df_in_final, df_tt_out):
 
-    mask_retirar_voo_g30001_reg_in = (~df_in_final['IN'].str.contains('G3 - 0001')) & (~df_in_final['IN'].str.contains('PRIVATIVO'))
+    mask_retirar_voo_g30001_reg_in = ~((df_in_final['IN'].str.contains('G3 - 0001')) & (~df_in_final['IN'].str.contains('PRIVATIVO')))
 
     df_in_final = df_in_final[mask_retirar_voo_g30001_reg_in].reset_index(drop=True)
 
-    mask_retirar_voo_g30001_reg_out = (~df_tt_out['Passeios | OUT'].str.contains('G3 - 0001')) & (~df_tt_out['Passeios | OUT'].str.contains('PRIVATIVO'))
+    mask_retirar_voo_g30001_reg_out = ~((df_tt_out['Passeios | OUT'].str.contains('G3 - 0001')) & (~df_tt_out['Passeios | OUT'].str.contains('PRIVATIVO')))
 
     df_tt_out = df_tt_out[mask_retirar_voo_g30001_reg_out].reset_index(drop=True)
 
