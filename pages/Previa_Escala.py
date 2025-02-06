@@ -75,7 +75,7 @@ def criar_df_router_filtrado():
 
     # Verificando Cadeirantes
 
-    df_router_filtrado['Cadeirante'] = df_router_filtrado.apply(lambda row: 'X' if 'CADEIRANTE' in row['Observacao'] else '', axis=1)
+    df_router_filtrado['Cadeirante'] = df_router_filtrado.apply(lambda row: 'X' if pd.notna(row['Observacao']) and 'CADEIRANTE' in row['Observacao'] else '', axis=1)
         
     # Criando coluna com Total ADT | CHD
 
