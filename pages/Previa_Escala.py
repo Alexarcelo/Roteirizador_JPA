@@ -483,16 +483,18 @@ def gerar_out_pvt(df_out):
 
     df_out_pvt_group = df_out[df_out['Modo do Servico']!='REGULAR']
 
-    df_out_pvt_group['Passeios | OUT'] = 'PRIVATIVO | TRF OUT ' +  df_out_pvt_group['Região OUT'] + ' | ' + df_out_pvt_group['Voo | Horario Voo'].str[:15] + ' | ' + \
-        df_out_pvt_group['Total ADT | CHD'].astype(int).astype(str) + ' PAXS\nReserva: ' + df_out_pvt_group['Reserva']
-    
-    # Inserindo coluna de Região Hotel
-    
-    df_out_pvt_group = pd.merge(df_out_pvt_group, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
-    
-    # Colocando aviso se existe pax cadeirante
+    if len(df_out_pvt_group)>0:
 
-    df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(ajustar_nomenclatura_cadeirante_bara_regiao_hotel, axis=1)
+        df_out_pvt_group['Passeios | OUT'] = 'PRIVATIVO | TRF OUT ' +  df_out_pvt_group['Região OUT'] + ' | ' + df_out_pvt_group['Voo | Horario Voo'].str[:15] + ' | ' + \
+            df_out_pvt_group['Total ADT | CHD'].astype(int).astype(str) + ' PAXS\nReserva: ' + df_out_pvt_group['Reserva']
+        
+        # Inserindo coluna de Região Hotel
+        
+        df_out_pvt_group = pd.merge(df_out_pvt_group, st.session_state.df_hoteis_pitimbu_camboinha, left_on='Est Origem', right_on='Hoteis', how='left')
+        
+        # Colocando aviso se existe pax cadeirante
+    
+        df_out_pvt_group['Passeios | OUT'] = df_out_pvt_group.apply(ajustar_nomenclatura_cadeirante_bara_regiao_hotel, axis=1)
     
     return df_out_pvt_group[['Horario Apresentacao', 'Passeios | OUT', 'Total ADT | CHD', 'Roteiro', 'Carros', 'Id_Servico']]
 
