@@ -803,9 +803,9 @@ if servico_roteiro:
 
 if roteirizar and data_roteiro and servico_roteiro and len(st.session_state.df_veiculos_roteiro)>0:
 
-    # with st.spinner('Puxando sequências de hoteis...'):
+    with st.spinner('Puxando sequências de hoteis...'):
 
-    #     puxar_sequencias_hoteis(st.session_state.id_gsheet, st.session_state.dict_abas_df_hoteis)
+        puxar_sequencias_hoteis(st.session_state.id_gsheet, st.session_state.dict_abas_df_hoteis)
 
     nome_df_hotel, nome_html_ref, nome_aba_excel, nome_regiao = gerar_variaveis_dict_regioes_hoteis(servico_roteiro)
 
