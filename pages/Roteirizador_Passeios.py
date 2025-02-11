@@ -160,7 +160,7 @@ def roteirizar_reserve_service_mais_pax_max(df):
 
     df_reserve_service_pax_max = df.groupby(['Id_Servico', 'Est Origem']).agg({'Total ADT | CHD': 'sum'}).reset_index()
 
-    df_reserve_service_pax_max = df_reserve_service_pax_max[df_reserve_service_pax_max['Total ADT | CHD']>=st.session_state.pax_max]
+    df_reserve_service_pax_max = df_reserve_service_pax_max[df_reserve_service_pax_max['Total ADT | CHD']>=st.session_state.df_carros_principais['Capacidade'].max()]
 
     if len(df_reserve_service_pax_max)>0:
 
@@ -222,7 +222,7 @@ def roteirizar_hoteis_mais_pax_max(df):
 
     df_hoteis_pax_max.columns = ['Est Origem', 'Total ADT | CHD - Sum', 'Total ADT | CHD - List', 'Id_Servico']
 
-    df_hoteis_pax_max = df_hoteis_pax_max[df_hoteis_pax_max['Total ADT | CHD - Sum']>=st.session_state.pax_max]
+    df_hoteis_pax_max = df_hoteis_pax_max[df_hoteis_pax_max['Total ADT | CHD - Sum']>=st.session_state.df_carros_principais['Capacidade'].max()]
 
     if len(df_hoteis_pax_max)>0:
 
@@ -234,7 +234,7 @@ def roteirizar_hoteis_mais_pax_max(df):
             
             id_list = row['Id_Servico']
 
-            carros = agrupar_em_carros(pax_list, id_list, st.session_state.pax_max)
+            carros = agrupar_em_carros(pax_list, id_list, st.session_state.df_carros_principais['Capacidade'].max())
 
             lista_ids_carros.extend(carros)
 
@@ -259,6 +259,18 @@ def objetos_parametros(row):
         with row[0]:
 
             horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(8,40), 'horario_passeio', step=300)
+
+    elif st.session_state.servico_roteiro=='PRAIAS DA COSTA DO CONDE':
+
+        with row[0]:
+
+            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+
+    elif st.session_state.servico_roteiro=='ILHA DE AREIA VERMELHA':
+
+        with row[0]:
+
+            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
     
     with row[1]:
 
@@ -317,11 +329,17 @@ def abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal):
 
     contador_hoteis = 1
 
-    carro_principal+=1
+    if carro_principal+1<len(st.session_state.df_carros_principais):
+
+        carro_principal+=1
+
+    else:
+
+        carro_principal=0
 
     pax_max = int(st.session_state.df_carros_principais.at[carro_principal, 'Capacidade'])
 
-    return df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max
+    return df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max, carro_principal
 
 def gerar_divisao_carros(df_group, df_group_hoteis_juntos, max_hoteis):
 
@@ -359,7 +377,7 @@ def gerar_divisao_carros(df_group, df_group_hoteis_juntos, max_hoteis):
 
             if contador_hoteis>max_hoteis or paxs_total_carro+paxs_hotel>pax_max:
 
-                df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max = abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal)
+                df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max, carro_principal = abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal)
 
             else:
 
@@ -429,7 +447,7 @@ def gerar_roteiros_alternativos_3(df_group, df_group_hoteis_juntos, df_group_reg
 
                 if contador_hoteis>st.session_state.max_hoteis or paxs_total_carro+paxs_hotel>pax_max:
 
-                    df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max = abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal)
+                    df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max, carro_principal = abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal)
 
                 else:
 
@@ -439,7 +457,7 @@ def gerar_roteiros_alternativos_3(df_group, df_group_hoteis_juntos, df_group_reg
 
             else:
 
-                df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max = abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal)
+                df_rota_gerada, paxs_total_carro, contador_hoteis, pax_max, carro_principal = abrir_novo_carro(df_rota_gerada, index, paxs_hotel, carro_principal)
 
         else:
 
@@ -724,9 +742,13 @@ if not 'id_gsheet' in st.session_state:
 
     st.session_state.id_gsheet = '1vbGeqKyM4VSvHbMiyiqu1mkwEhneHi28e8cQ_lYMYhY'
 
-    st.session_state.dict_abas_df_hoteis = {'Hoteis Joao Pessoa': 'df_joao_pessoa'}
+    st.session_state.dict_abas_df_hoteis = {'Hoteis Sentido Sul': 'df_sentido_sul', 'Hoteis Joao Pessoa': 'df_sentido_norte'}
 
-    st.session_state.dict_regioes_hoteis = {'CITY TOUR': ['df_joao_pessoa', 'City Tour', 'Hoteis Joao Pessoa', 'City Tour']}
+    st.session_state.dict_regioes_hoteis = {'CITY TOUR': ['df_sentido_sul', 'City Tour', 'Hoteis Sentido Sul', 'City Tour'], 
+                                            'PRAIAS DA COSTA DO CONDE': ['df_sentido_sul', 'Conde', 'Hoteis Sentido Sul', 'Conde'], 
+                                            'ILHA DE AREIA VERMELHA': ['df_sentido_norte', 'Ilha', 'Hoteis Joao Pessoa', 'Ilha']}
+
+    st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
 
 if not 'df_router' in st.session_state:
 
@@ -817,7 +839,7 @@ if roteirizar and data_roteiro and servico_roteiro and len(st.session_state.df_v
     if servico_roteiro=='CITY TOUR':
 
         st.session_state.df_carros_principais.loc[st.session_state.df_carros_principais['Principal | Apoio']=='Principal', 'Capacidade'] = \
-            st.session_state.df_carros_principais.loc[st.session_state.df_carros_principais['Principal | Apoio']=='Principal', 'Capacidade']*1.15
+            st.session_state.df_carros_principais.loc[st.session_state.df_carros_principais['Principal | Apoio']=='Principal', 'Capacidade'].apply(lambda x: math.ceil(x*1.15))
 
     df_router_filtrado = st.session_state.df_router[(st.session_state.df_router['Data Execucao']==data_roteiro) & (st.session_state.df_router['Tipo de Servico']=='TOUR') & 
                                                     (st.session_state.df_router['Modo do Servico']=='REGULAR') & (st.session_state.df_router['Status do Servico']!='CANCELADO') & 
