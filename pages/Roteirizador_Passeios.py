@@ -8,6 +8,7 @@ import gspread
 from itertools import combinations
 import math
 import requests
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 def gerar_df_phoenix(vw_name, base_luck):
 
@@ -606,7 +607,13 @@ def gerar_lista_payload_escalar(data_roteiro):
 
     for index, row in st.session_state.df_escalar.iterrows():
 
-        id_servicos = st.session_state.df_roteiros[(st.session_state.df_roteiros['Rota']==row['Rota']) & (st.session_state.df_roteiros['Carros']==row['Carros'])]['Id_Servico'].iloc[0]
+        if row['Principal | Apoio']=='Principal':
+
+            id_servicos = st.session_state.df_roteiros[(st.session_state.df_roteiros['Rota']==row['Rota']) & (st.session_state.df_roteiros['Carros']==row['Carros'])]['Id_Servico'].iloc[0]
+
+        else:
+
+            id_servicos = st.session_state.ids_apoio
 
         date_str = data_roteiro.strftime('%Y-%m-%d')
 
@@ -614,26 +621,53 @@ def gerar_lista_payload_escalar(data_roteiro):
 
         id_motorista = int(st.session_state.df_motoristas[st.session_state.df_motoristas['Motorista']==row['Motorista']]['id'].iloc[0])
 
-        if row['Guia']!='':
+        if row['Principal | Apoio']=='Principal':
 
-            id_guia = int(st.session_state.df_guias[st.session_state.df_guias['Guia']==row['Guia']]['id'].iloc[0])
+            if row['Guia']!='':
 
-            payload = {
-                    "date": date_str,
-                    "vehicle_id": id_veiculo,
-                    "driver_id": id_motorista,
-                    "guide_id": id_guia,
-                    "reserve_service_ids": id_servicos,
-                }
-            
+                id_guia = int(st.session_state.df_guias[st.session_state.df_guias['Guia']==row['Guia']]['id'].iloc[0])
+
+                payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "guide_id": id_guia,
+                        "reserve_service_ids": id_servicos,
+                    }
+                
+            else:
+
+                payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "reserve_service_ids": id_servicos,
+                    }
+                
         else:
 
-            payload = {
-                    "date": date_str,
-                    "vehicle_id": id_veiculo,
-                    "driver_id": id_motorista,
-                    "reserve_service_ids": id_servicos,
-                }
+            if row['Guia']!='':
+
+                id_guia = int(st.session_state.df_guias[st.session_state.df_guias['Guia']==row['Guia']]['id'].iloc[0])
+
+                payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "guide_id": id_guia,
+                        "roadmap_aux_id": None,
+                        "reserve_service_ids": id_servicos,
+                    }
+                
+            else:
+
+                payload = {
+                        "date": date_str,
+                        "vehicle_id": id_veiculo,
+                        "driver_id": id_motorista,
+                        "roadmap_aux_id": None,
+                        "reserve_service_ids": id_servicos,
+                    }
         
         escalas_para_atualizar.append(payload)
 
@@ -641,13 +675,25 @@ def gerar_lista_payload_escalar(data_roteiro):
 
 def update_scale(payload):
 
-    try:
-        response = requests.post(st.session_state.base_url_post, json=payload, verify=False)
-        response.raise_for_status()
-        return 'Escala atualizada com sucesso!'
-    except requests.RequestException as e:
-        st.error(f"Ocorreu um erro: {e}")
-        return 'Erro ao atualizar a escala'
+    if not 'roadmap_aux_id' in payload:
+
+        try:
+            response = requests.post(st.session_state.base_url_post, json=payload, verify=False)
+            response.raise_for_status()
+            return 'Escala atualizada com sucesso!'
+        except requests.RequestException as e:
+            st.error(f"Ocorreu um erro: {e}")
+            return 'Erro ao atualizar a escala'
+        
+    else:
+
+        try:
+            response = requests.post(st.session_state.base_url_post_apoio, json=payload, verify=False)
+            response.raise_for_status()
+            return 'Escala atualizada com sucesso!'
+        except requests.RequestException as e:
+            st.error(f"Ocorreu um erro: {e}")
+            return 'Erro ao atualizar a escala'
 
 def colher_dados_escalas(row_rota):
 
@@ -659,31 +705,36 @@ def colher_dados_escalas(row_rota):
 
     with row_rota[1]:
 
+        principal_apoio = st.selectbox('Principal | Apoio', ['Principal', 'Apoio'], index=None)
+
+    with row_rota[2]:
+
         veiculo = st.selectbox('Veículo', sorted(st.session_state.df_veiculos[~st.session_state.df_veiculos['Veiculo'].str.contains('4X4|4x4|BUGGY')]['Veiculo']), index=None)
 
         limpar_escalas = st.button('Limpar Escalas')
 
-    with row_rota[2]:
+    with row_rota[3]:
 
         motorista = st.selectbox('Motorista', sorted(st.session_state.df_motoristas['Motorista']), index=None)
 
-    with row_rota[3]:
+    with row_rota[4]:
 
         guia = st.selectbox('Guia', sorted(st.session_state.df_guias['Guia']), index=None)
 
-    return rota_selecionada, inserir_escala, veiculo, limpar_escalas, motorista, guia
+    return rota_selecionada, inserir_escala, veiculo, limpar_escalas, motorista, guia, principal_apoio
 
-def inserir_linha_df_escalar(inserir_escala, rota_selecionada, guia, veiculo, motorista):
+def inserir_linha_df_escalar(inserir_escala, rota_selecionada, guia, veiculo, motorista, principal_apoio):
 
-    if inserir_escala and len(st.session_state.df_escalar)<len(st.session_state.df_roteiros[st.session_state.df_roteiros['Rota']==rota_selecionada]):
+    if inserir_escala and (len(st.session_state.df_escalar[st.session_state.df_escalar['Principal | Apoio']=='Principal'])\
+        <len(st.session_state.df_roteiros[st.session_state.df_roteiros['Rota']==rota_selecionada]) or principal_apoio=='Apoio'):
 
         if guia:
 
-            st.session_state.df_escalar.loc[len(st.session_state.df_escalar)] = [rota_selecionada, len(st.session_state.df_escalar)+1, veiculo, motorista, guia]
+            st.session_state.df_escalar.loc[len(st.session_state.df_escalar)] = [rota_selecionada, principal_apoio, len(st.session_state.df_escalar)+1, veiculo, motorista, guia]
 
         else:
 
-            st.session_state.df_escalar.loc[len(st.session_state.df_escalar)] = [rota_selecionada, len(st.session_state.df_escalar)+1, veiculo, motorista, '']
+            st.session_state.df_escalar.loc[len(st.session_state.df_escalar)] = [rota_selecionada, principal_apoio, len(st.session_state.df_escalar)+1, veiculo, motorista, '']
 
     elif inserir_escala:
 
@@ -750,6 +801,8 @@ if not 'id_gsheet' in st.session_state:
 
     st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
 
+    st.session_state.base_url_post_apoio = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/aux'
+
 if not 'df_router' in st.session_state:
 
     with st.spinner('Puxando dados do Phoenix...'):
@@ -758,7 +811,7 @@ if not 'df_router' in st.session_state:
 
 if not 'df_escalar' in st.session_state:
 
-    st.session_state.df_escalar = pd.DataFrame(columns=['Rota', 'Carros', 'Veiculo', 'Motorista', 'Guia'])
+    st.session_state.df_escalar = pd.DataFrame(columns=['Rota', 'Principal | Apoio', 'Carros', 'Veiculo', 'Motorista', 'Guia'])
 
 row0=st.columns(3) 
 
@@ -814,6 +867,12 @@ with row1[1]:
         st.session_state.df_veiculos_roteiro.loc[len(st.session_state.df_veiculos_roteiro)] = lista_insercao
 
 with row1[2]:
+
+    limpar_veiculos = st.button('Limpar Veículos')
+
+    if limpar_veiculos:
+
+        st.session_state.df_veiculos_roteiro = pd.DataFrame(columns=['Capacidade', 'Principal | Apoio'])
 
     container_dataframe = st.container()
 
@@ -887,15 +946,15 @@ if 'df_roteiros' in st.session_state:
 
     st.divider()
 
-    row_rota = st.columns(4)
+    row_rota = st.columns(5)
 
-    rota_selecionada, inserir_escala, veiculo, limpar_escalas, motorista, guia = colher_dados_escalas(row_rota)
+    rota_selecionada, inserir_escala, veiculo, limpar_escalas, motorista, guia, principal_apoio = colher_dados_escalas(row_rota)
 
-    inserir_linha_df_escalar(inserir_escala, rota_selecionada, guia, veiculo, motorista)
+    inserir_linha_df_escalar(inserir_escala, rota_selecionada, guia, veiculo, motorista, principal_apoio)
 
     if limpar_escalas:
 
-        st.session_state.df_escalar = pd.DataFrame(columns=['Rota', 'Carros', 'Veiculo', 'Motorista', 'Guia'])
+        st.session_state.df_escalar = pd.DataFrame(columns=['Rota', 'Principal | Apoio', 'Carros', 'Veiculo', 'Motorista', 'Guia'])
 
     container_dataframe = st.container()
 
@@ -913,6 +972,45 @@ if 'df_roteiros' in st.session_state:
 
                 status = update_scale(escala)
 
-    else:
+    elif not rota_selecionada:
 
         plotar_roteiros()
+
+    else:
+
+        df_roteiro_selecionado = st.session_state.df_roteiros[st.session_state.df_roteiros['Rota']==rota_selecionada]
+
+        escolher_carro = st.selectbox('Veículo c/ Apoio', df_roteiro_selecionado['Carros'].astype(int).unique())
+
+        if escolher_carro:
+
+            df_carro_selecionado = df_roteiro_selecionado[df_roteiro_selecionado['Carros']==escolher_carro]
+
+            df_carro_selecionado = st.session_state.df_router_filtrado_2[st.session_state.df_router_filtrado_2['Id_Servico'].isin(df_carro_selecionado['Id_Servico'].iloc[0])]\
+                .groupby(['Est Origem', 'Sequência']).agg({'Total ADT | CHD': 'sum', 'Id_Servico': lambda x: list(x)}).reset_index()
+
+            df_exibicao = df_carro_selecionado[['Est Origem', 'Sequência', 'Total ADT | CHD']].sort_values(by='Sequência')
+
+            df_exibicao = df_exibicao[['Est Origem', 'Total ADT | CHD']]
+
+            gb = GridOptionsBuilder.from_dataframe(df_exibicao)
+            gb.configure_selection('multiple', use_checkbox=True, header_checkbox=True)
+            gb.configure_grid_options(domLayout='autoHeight')
+            gb.configure_grid_options(domLayout='autoWidth')
+            gridOptions = gb.build()
+
+            grid_response = AgGrid(df_exibicao, gridOptions=gridOptions, enable_enterprise_modules=False, fit_columns_on_grid_load=True)
+
+            selected_rows = grid_response['selected_rows']
+
+            if selected_rows is not None:
+
+                st.write(f"Total de Paxs no Apoio = {selected_rows['Total ADT | CHD'].sum()}")
+
+            inserir_apoios = st.button('Inserir Apoio')
+
+            if inserir_apoios and selected_rows is not None:
+
+                st.session_state.ids_apoio = df_carro_selecionado[df_carro_selecionado['Est Origem'].isin(selected_rows['Est Origem'])]['Id_Servico'].explode().tolist()
+
+                st.success('Apoio inserido com sucesso!')
