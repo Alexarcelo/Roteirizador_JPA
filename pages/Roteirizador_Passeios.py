@@ -991,6 +991,14 @@ if 'df_roteiros' in st.session_state:
 
                 status = update_scale(escala)
 
+        st.session_state.df_escalar = pd.DataFrame(columns=['Rota', 'Principal | Apoio', 'Carros', 'Veiculo', 'Motorista', 'Guia'])
+
+        st.session_state.df_veiculos_roteiro = pd.DataFrame(columns=['Capacidade', 'Principal | Apoio'])
+
+        st.rerun()
+
+        st.success('Escalas criadas com sucesso!')
+
     elif not rota_selecionada:
 
         plotar_roteiros()
