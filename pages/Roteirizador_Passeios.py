@@ -272,6 +272,18 @@ def objetos_parametros(row):
         with row[0]:
 
             horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+
+    elif st.session_state.servico_roteiro=='LITORAL NORTE COM ENTARDECER NA PRAIA DO JACARÉ':
+
+        with row[0]:
+
+            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+
+    elif st.session_state.servico_roteiro=='ENTARDECER NA PRAIA DO JACARÉ ':
+
+        with row[0]:
+
+            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
     
     with row[1]:
 
@@ -797,12 +809,14 @@ if not 'id_gsheet' in st.session_state:
 
     st.session_state.dict_regioes_hoteis = {'CITY TOUR': ['df_sentido_sul', 'City Tour', 'Hoteis Sentido Sul', 'City Tour'], 
                                             'PRAIAS DA COSTA DO CONDE': ['df_sentido_sul', 'Conde', 'Hoteis Sentido Sul', 'Conde'], 
-                                            'ILHA DE AREIA VERMELHA': ['df_sentido_norte', 'Ilha', 'Hoteis Joao Pessoa', 'Ilha']}
+                                            'ILHA DE AREIA VERMELHA': ['df_sentido_norte', 'Ilha', 'Hoteis Joao Pessoa', 'Ilha'],
+                                            'LITORAL NORTE COM ENTARDECER NA PRAIA DO JACARÉ': ['df_sentido_norte', 'Litoral Norte', 'Hoteis Joao Pessoa', 'Litoral Norte'],
+                                            'ENTARDECER NA PRAIA DO JACARÉ ': ['df_sentido_norte', 'Entardecer', 'Hoteis Joao Pessoa', 'Entardecer']}
 
     st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
 
     st.session_state.base_url_post_apoio = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/aux'
-
+    
 if not 'df_router' in st.session_state:
 
     with st.spinner('Puxando dados do Phoenix...'):
@@ -892,8 +906,8 @@ if roteirizar and data_roteiro and servico_roteiro and len(st.session_state.df_v
 
     df_hoteis_ref = st.session_state[nome_df_hotel]
 
-    st.session_state.df_carros_principais = st.session_state.df_veiculos_roteiro[st.session_state.df_veiculos_roteiro['Principal | Apoio']=='Principal'].sort_values(by='Capacidade', ascending=False)\
-        .reset_index(drop=True)
+    st.session_state.df_carros_principais = st.session_state.df_veiculos_roteiro[st.session_state.df_veiculos_roteiro['Principal | Apoio']=='Principal']\
+        .sort_values(by='Capacidade', ascending=False).reset_index(drop=True)
 
     if servico_roteiro=='CITY TOUR':
 
@@ -905,8 +919,6 @@ if roteirizar and data_roteiro and servico_roteiro and len(st.session_state.df_v
                                                     (st.session_state.df_router['Servico']==servico_roteiro)].reset_index(drop=True)
     
     df_router_filtrado = df_router_filtrado[~df_router_filtrado['Observacao'].str.upper().str.contains('CLD', na=False)]
-
-    
 
     itens_faltantes, lista_hoteis_df_router = gerar_itens_faltantes(df_router_filtrado, df_hoteis_ref)
 
@@ -940,7 +952,14 @@ if roteirizar and data_roteiro and servico_roteiro and len(st.session_state.df_v
 
         n_carros_alt_4, df_rota_alternativa_4 = gerar_roteiros_alternativos_4(df_group)
 
-        st.session_state.df_roteiros = gerar_roteiros_diferentes(df_rota_principal, df_rota_alternativa_1, df_rota_alternativa_2, df_rota_alternativa_3, df_rota_alternativa_4)
+        st.session_state.df_roteiros = gerar_roteiros_diferentes(df_rota_principal, df_rota_alternativa_1, df_rota_alternativa_2, df_rota_alternativa_3, 
+                                                                 df_rota_alternativa_4)
+        
+    else:
+
+        df_rota_principal['Rota'] = 'Rota Principal'
+
+        st.session_state.df_roteiros = df_rota_principal
 
 if 'df_roteiros' in st.session_state:
 
