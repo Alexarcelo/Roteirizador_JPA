@@ -255,33 +255,37 @@ def roteirizar_hoteis_mais_pax_max(df):
 
 def objetos_parametros(row):
 
-    if st.session_state.servico_roteiro=='CITY TOUR':
+    # if st.session_state.servico_roteiro=='CITY TOUR':
 
-        with row[0]:
+    #     with row[0]:
 
-            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(8,40), 'horario_passeio', step=300)
+    #         horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(8,40), 'horario_passeio', step=300)
 
-    elif st.session_state.servico_roteiro=='PRAIAS DA COSTA DO CONDE':
+    # elif st.session_state.servico_roteiro=='PRAIAS DA COSTA DO CONDE':
 
-        with row[0]:
+    #     with row[0]:
 
-            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+    #         horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
 
-    elif st.session_state.servico_roteiro=='ILHA DE AREIA VERMELHA':
+    # elif st.session_state.servico_roteiro=='ILHA DE AREIA VERMELHA':
 
-        with row[0]:
+    #     with row[0]:
 
-            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+    #         horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
 
-    elif st.session_state.servico_roteiro=='LITORAL NORTE COM ENTARDECER NA PRAIA DO JACARÉ':
+    # elif st.session_state.servico_roteiro=='LITORAL NORTE COM ENTARDECER NA PRAIA DO JACARÉ':
 
-        with row[0]:
+    #     with row[0]:
 
-            horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+    #         horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
 
-    elif st.session_state.servico_roteiro=='ENTARDECER NA PRAIA DO JACARÉ ':
+    # elif st.session_state.servico_roteiro=='ENTARDECER NA PRAIA DO JACARÉ ':
 
-        with row[0]:
+    #     with row[0]:
+
+    #         horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
+
+    with row[0]:
 
             horario_passeio = st.time_input('Horário Padrão de Último Hotel', time(7,30), 'horario_passeio', step=300)
     
@@ -807,11 +811,116 @@ if not 'id_gsheet' in st.session_state:
 
     st.session_state.dict_abas_df_hoteis = {'Hoteis Sentido Sul': 'df_sentido_sul', 'Hoteis Joao Pessoa': 'df_sentido_norte'}
 
-    st.session_state.dict_regioes_hoteis = {'CITY TOUR': ['df_sentido_sul', 'City Tour', 'Hoteis Sentido Sul', 'City Tour'], 
-                                            'PRAIAS DA COSTA DO CONDE': ['df_sentido_sul', 'Conde', 'Hoteis Sentido Sul', 'Conde'], 
-                                            'ILHA DE AREIA VERMELHA': ['df_sentido_norte', 'Ilha', 'Hoteis Joao Pessoa', 'Ilha'],
-                                            'LITORAL NORTE COM ENTARDECER NA PRAIA DO JACARÉ': ['df_sentido_norte', 'Litoral Norte', 'Hoteis Joao Pessoa', 'Litoral Norte'],
-                                            'ENTARDECER NA PRAIA DO JACARÉ ': ['df_sentido_norte', 'Entardecer', 'Hoteis Joao Pessoa', 'Entardecer']}
+    st.session_state.dict_regioes_hoteis = {
+        'CITY TOUR': [
+            'df_sentido_sul', 
+            'City Tour', 
+            'Hoteis Sentido Sul', 
+            'City Tour'
+        ], 
+        'PRAIAS DA COSTA DO CONDE': [
+            'df_sentido_sul', 
+            'Conde', 
+            'Hoteis Sentido Sul', 
+            'Conde'
+        ], 
+        'ILHA DE AREIA VERMELHA': [
+            'df_sentido_norte', 
+            'Ilha', 
+            'Hoteis Joao Pessoa', 
+            'Ilha'
+        ], 
+        'LITORAL NORTE COM ENTARDECER NA PRAIA DO JACARÉ': [
+            'df_sentido_norte', 
+            'Litoral Norte', 
+            'Hoteis Joao Pessoa', 
+            'Litoral Norte'
+        ], 
+        'ENTARDECER NA PRAIA DO JACARÉ ': [
+            'df_sentido_norte', 
+            'Entardecer', 
+            'Hoteis Joao Pessoa', 
+            'Entardecer'
+        ], 
+        'CATAMARÃ DO FORRÓ': [
+            'df_sentido_norte', 
+            'Catamara do Forro', 
+            'Hoteis Joao Pessoa', 
+            'Catamara do Forro'
+        ], 
+        'BY NIGHT PARAHYBA OXENTE ': [
+            'df_sentido_norte', 
+            'By Night', 
+            'Hoteis Joao Pessoa', 
+            'By Night'
+        ], 
+        'PISCINAS DO EXTREMO ORIENTAL': [
+            'df_sentido_sul', 
+            'Extremo', 
+            'Hoteis Sentido Sul', 
+            'Extremo'
+        ], 
+        'PRAIA BELA': [
+            'df_sentido_sul', 
+            'Praia Bela', 
+            'Hoteis Sentido Sul', 
+            'Praia Bela'
+        ], 
+        'PORTO DE GALINHAS - PE': [
+            'df_sentido_sul', 
+            'Porto', 
+            'Hoteis Sentido Sul', 
+            'Porto'
+        ], 
+        'PIPA - RN': [
+            'df_sentido_sul', 
+            'Pipa', 
+            'Hoteis Sentido Sul', 
+            'Pipa'
+        ], 
+        'RECIFE/OLINDA - PE': [
+            'df_sentido_sul', 
+            'Recife', 
+            'Hoteis Sentido Sul', 
+            'Recife'
+        ], 
+        'CABACEIRAS/CARIRI - A ROLIÚDE NORDESTINA': [
+            'df_sentido_sul', 
+            'Cabaceiras', 
+            'Hoteis Sentido Sul', 
+            'Cabaceiras'
+        ],
+        'VILA SÍTIO SÃO JOÃO ': [
+            'df_sentido_sul', 
+            'Vila', 
+            'Hoteis Sentido Sul', 
+            'Vila'
+        ],
+        'CAMINHO DOS ENGENHOS': [
+            'df_sentido_sul', 
+            'Caminho dos Engenhos', 
+            'Hoteis Sentido Sul', 
+            'Caminho dos Engenhos'
+        ],
+        'SÃO JOÃO EM CAMPINA GRANDE': [
+            'df_sentido_sul', 
+            'Sao Joao Campina Grande', 
+            'Hoteis Sentido Sul', 
+            'Sao Joao Campina Grande'
+        ],
+        'MISTÉRIO E HISTÓRIA DA PARAÍBA ': [
+            'df_sentido_sul', 
+            'Misterio e Historia da PB', 
+            'Hoteis Sentido Sul', 
+            'Misterio e Historia da PB'
+        ], 
+        'NATAL - RN ': [
+            'df_sentido_sul', 
+            'Natal', 
+            'Hoteis Sentido Sul', 
+            'Natal'
+        ]
+    }
 
     st.session_state.base_url_post = 'https://driverjoao_pessoa.phoenix.comeialabs.com/scale/roadmap/allocate'
 
