@@ -366,7 +366,7 @@ def definir_horario_primeiro_hotel(df, index):
 
                     return data_hora_voo - transformar_timedelta(st.session_state.intervalo_inicial_joao_pessoa)
 
-            elif servico=='HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA':
+            elif servico=='HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA' or servico=='HOTÉIS CONDE/ AEROPORTO JOÃO PESSOA':
 
                 if tipo_voo=='Internacional':
 
@@ -3885,6 +3885,7 @@ if tipo_de_transfer:
                                                             'Campina Grande'], 
             'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
             'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'],
+            'HOTÉIS CONDE/ AEROPORTO JOÃO PESSOA': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'],
             'AEROPORTO JOÃO PESSOA / HOTEIS JOÃO PESSOA': ['df_joao_pessoa', 'João Pessoa', 'Hoteis Joao Pessoa', 'João Pessoa'], 
             'AEROPORTO JOÃO PESSOA / HOTÉIS PITIMBU': ['df_pitimbu', 'Pitimbu', 'Hoteis Pitimbu', 'Pitimbú'], 
             'AEROPORTO JOÃO PESSOA / HOTÉIS CAMPINA GRANDE': ['df_campina_grande', 'Campina Grande', 'Hoteis Campina Grande', 'Campina Grande'],
@@ -4302,7 +4303,8 @@ if tipo_de_transfer=='OUT':
                 'HOTÉIS JOÃO PESSOA / AEROPORTO RECIFE': 'João Pessoa', 
                 'HOTÉIS CAMPINA GRANDE / AEROPORTO JOÃO PESSOA': 'Campina Grande', 
                 'HOTÉIS JOÃO PESSOA / AEROPORTO JOÃO PESSOA': 'João Pessoa', 
-                'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': 'Pitimbú'}
+                'HOTÉIS PITIMBU / AEROPORTO JOÃO PESSOA': 'Pitimbú',
+                'HOTÉIS CONDE/ AEROPORTO JOÃO PESSOA': 'Pitimbú'}
 
             if len(df_ref_thiago)>0:
 
